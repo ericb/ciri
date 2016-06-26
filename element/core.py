@@ -48,7 +48,7 @@ class Element(metaclass=MetaElement):
             if (klass_value == ElementMissing) and (self._fields[key].default is not ElementDefault):
                 klass_value = self._fields[key].default
             if self._fields[key].required and (klass_value == ElementMissing):
-                self.errors[key] = self._fields[key].message('required')
+                self.errors[key] = self._fields[key].message.required
             elif self._fields[key].allow_none and (klass_value == ElementMissing):
                 pass
             else:

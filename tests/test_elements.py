@@ -35,7 +35,7 @@ def test_string_validation():
     test_e = Test(label={})
     test_f = Test(label=[])
 
-    invalid_msg = elements.String().message('invalid')
+    invalid_msg = elements.String().message.invalid
     label_invalid_error = {'label': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'label': 'hello world'}
@@ -70,7 +70,7 @@ def test_integer_validation():
     test_g = Test(count=None)
     test_h = Test(count=50.3)
 
-    invalid_msg = elements.Integer().message('invalid')
+    invalid_msg = elements.Integer().message.invalid
     count_invalid_error = {'count': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'count': 5}
@@ -110,7 +110,7 @@ def test_boolean_validation():
     test_f = Test(active=[])
     test_g = Test(active=None)
 
-    invalid_msg = elements.Boolean().message('invalid')
+    invalid_msg = elements.Boolean().message.invalid
     active_invalid_error = {'active': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'active': False}
@@ -147,7 +147,7 @@ def test_dict_validation():
     test_f = Test(mapping=4)
     test_g = Test(mapping=True)
 
-    invalid_msg = elements.Dict().message('invalid')
+    invalid_msg = elements.Dict().message.invalid
     mapping_invalid_error = {'mapping': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'mapping': {'foo': 'bar'}}
@@ -188,9 +188,9 @@ def test_list_validation():
     test_j = Test(fruits=5)
     test_k = Test(fruits=elements.String())
 
-    invalid_msg = elements.List().message('invalid')
-    invalid_string_msg = elements.String().message('invalid')
-    invalid_item_msg = elements.List().message('invalid_item')
+    invalid_msg = elements.List().message.invalid
+    invalid_string_msg = elements.String().message.invalid
+    invalid_item_msg = elements.List().message.invalid_item
     fruits_invalid_error = {'fruits': {'message': invalid_msg}}
     fruits_invalid_item_error = {'fruits': {'message': invalid_item_msg, 'errors': {'0': {'message': invalid_string_msg}}}}
 

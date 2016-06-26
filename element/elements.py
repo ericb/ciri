@@ -12,6 +12,18 @@ class FieldErrorMessages():
         self._messages.update(kwargs)
 
 
+class FieldMessageContainer():
+
+    def __init__(self, field):
+        self._field = field
+
+    def __getattr__(self, name):
+        if self._field._messages.get(name):
+            return self._field_messages[name]
+        else:
+            return self._field.messages._messages[name]
+
+
 class MetaField(type):
 
     def __new__(cls, name, bases, attrs):
@@ -39,19 +51,13 @@ class Field(metaclass=MetaField):
         self.default = kwargs.get('default', ElementDefault)
         self.allow_none = kwargs.get('allow_none', False)
         self._messages = kwargs.get('messages', {})
+        self.message = FieldMessageContainer(self)
 
     def serialize(self, value):
         raise NotImplementedError
 
     def validate(self, value):
-        raise NotImplementedError
-
-    def message(self, name):
-        if self._messages.get(name):
-            return self._messages[name]
-        else:
-            return self.messages._messages[name]
-
+        raise NotImplementedError 
 
 class String(Field):
 
@@ -64,7 +70,7 @@ class String(Field):
 
     def validate(self, value):
         if str(value) != value:
-            raise InvalidElementException(self.message('invalid'))
+            raise InvalidElementException(self.message.invalid)
 
 
 class Integer(Field):
@@ -78,7 +84,7 @@ class Integer(Field):
 
     def validate(self, value):
         if not isinstance(value, int) or (type(value) != int):
-            raise InvalidElementException(self.message('invalid'))
+            raise InvalidElementException(self.message.invalid)
 
 
 class Boolean(Field):
@@ -92,7 +98,7 @@ class Boolean(Field):
 
     def validate(self, value):
         if not isinstance(value, bool) or (type(value) != bool):
-            raise InvalidElementException(self.message('invalid'))
+            raise InvalidElementException(self.message.invalid)
 
 
 class Dict(Field):
@@ -104,7 +110,7 @@ class Dict(Field):
 
     def validate(self, value):
         if not isinstance(value, dict):
-            raise InvalidElementException(self.message('invalid'))
+            raise InvalidElementException(self.message.invalid)
 
 
 class List(Field):
@@ -128,13 +134,13 @@ class List(Field):
     def validate(self, value):
         errors = {}
         if not isinstance(value, list):
-            raise InvalidElementException(self.message('invalid'))
+            raise InvalidElementException(self.message.invalid)
         for k, v in enumerate(value):
             try:
                 self.field.validate(v)
             except ElementException as e:
                 errors[k] = e
         if errors:
-            raise InvalidElementException(self.message('invalid_item'), errors=errors)
+            raise InvalidElementException(self.message.invalid_item, errors=errors)
 
 
