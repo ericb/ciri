@@ -70,20 +70,19 @@ class Schema(metaclass=MetaSchema):
                     self.errors[key] = self._parse_errors(e);
         return self
 
-    def serialize(self, input_, skip_validation=False):
+    def serialize(self, data, skip_validation=False):
         output = {}
-        self._data = {}
         elements = self._elements.copy()
-        for k, v in input.items():
+        for k, v in data.items():
             if self._fields.get(k):
                 elements[k] = True
 
         if not skip_validation:
-            self.validate(input_)
+            self.validate(data)
 
         for key in elements.keys():
             # field value
-            klass_value = input_.get(key, SchemaFieldMissing)
+            klass_value = data.get(key, SchemaFieldMissing)
 
             # if the field is missing, set the default value
             if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
