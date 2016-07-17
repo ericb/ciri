@@ -17,9 +17,6 @@ class MetaSchema(type):
                     klass._elements[k] = True
         return klass
 
-    def __init__(cls, name, bases, attrs):
-        cls._data = {}
-
 
 class Schema(metaclass=MetaSchema):
 
@@ -65,15 +62,15 @@ class Schema(metaclass=MetaSchema):
                     self.errors[key] = self._parse_errors(e);
         return self
 
-    def serialize(self, data, skip_validation=False):
-        self._data = {}
+    def serialize(self, input_, skip_validation=False):
+        output = {}
 
         if not skip_validation:
-            self.validate(data)
+            self.validate(input_)
 
-        for key in data.keys():
+        for key in input_.keys():
             # field value
-            klass_value = data.get(key, SchemaFieldMissing)
+            klass_value = input_.get(key, SchemaFieldMissing)
 
             # if the field is missing, set the default value
             if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
@@ -86,15 +83,14 @@ class Schema(metaclass=MetaSchema):
 
             # if it's allowed, and the field is missing, set the value to None
             if self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
-                self._data[name] = None
+                output[name] = None
             else:
                 # if we have something to work with, try and serialize it
                 if not self.errors.get(key, None):
                     try:
                         value = self._fields[key].serialize(klass_value)
                         if klass_value != SchemaFieldMissing:
-                            self._data[name] = value
+                            output[name] = value
                     except SerializationException:
                         pass
-        return self
-
+        return output
