@@ -5,13 +5,13 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
 
-from element.core import Element
-from element import elements
+from ciri.core import Schema
+from ciri import fields
 
 
 @pytest.fixture
 def person():
-    class Person(Element):
-        name = elements.String()
+    class Person(Schema):
+        name = fields.String()
 
     return Person(name='jack')

@@ -3,12 +3,12 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
 
-from element import elements
-from element.core import Element
+from ciri import fields
+from ciri.core import Schema
 
 
 def test_basic_serialization():
-    class Test(Element):
+    class Test(Schema):
         pass
 
     test = Test()
@@ -17,7 +17,7 @@ def test_basic_serialization():
 
 
 def test_basic_validation():
-    class Test(Element):
+    class Test(Schema):
         pass
 
     test = Test()
@@ -25,8 +25,8 @@ def test_basic_validation():
 
 
 def test_string_validation():
-    class Test(Element):
-        label = elements.String()
+    class Test(Schema):
+        label = fields.String()
 
     test_a = Test(label='hello world')
     test_b = Test(label=str(4))
@@ -35,7 +35,7 @@ def test_string_validation():
     test_e = Test(label={})
     test_f = Test(label=[])
 
-    invalid_msg = elements.String().message.invalid
+    invalid_msg = fields.String().message.invalid
     label_invalid_error = {'label': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'label': 'hello world'}
@@ -58,8 +58,8 @@ def test_string_validation():
 
 
 def test_integer_validation():
-    class Test(Element):
-        count = elements.Integer()
+    class Test(Schema):
+        count = fields.Integer()
 
     test_a = Test(count=5)
     test_b = Test(count=99999999999)
@@ -70,7 +70,7 @@ def test_integer_validation():
     test_g = Test(count=None)
     test_h = Test(count=50.3)
 
-    invalid_msg = elements.Integer().message.invalid
+    invalid_msg = fields.Integer().message.invalid
     count_invalid_error = {'count': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'count': 5}
@@ -99,8 +99,8 @@ def test_integer_validation():
 
 
 def test_boolean_validation():
-    class Test(Element):
-        active = elements.Boolean()
+    class Test(Schema):
+        active = fields.Boolean()
 
     test_a = Test(active=False)
     test_b = Test(active=True)
@@ -110,7 +110,7 @@ def test_boolean_validation():
     test_f = Test(active=[])
     test_g = Test(active=None)
 
-    invalid_msg = elements.Boolean().message.invalid
+    invalid_msg = fields.Boolean().message.invalid
     active_invalid_error = {'active': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'active': False}
@@ -136,8 +136,8 @@ def test_boolean_validation():
 
 
 def test_dict_validation():
-    class Test(Element):
-        mapping = elements.Dict()
+    class Test(Schema):
+        mapping = fields.Dict()
 
     test_a = Test(mapping={'foo': 'bar'})
     test_b = Test(mapping={'foo': Test})
@@ -147,7 +147,7 @@ def test_dict_validation():
     test_f = Test(mapping=4)
     test_g = Test(mapping=True)
 
-    invalid_msg = elements.Dict().message.invalid
+    invalid_msg = fields.Dict().message.invalid
     mapping_invalid_error = {'mapping': {'message': invalid_msg}}
 
     assert test_a.serialize()._data == {'mapping': {'foo': 'bar'}}
@@ -173,8 +173,8 @@ def test_dict_validation():
 
 
 def test_list_validation():
-    class Test(Element):
-        fruits = elements.List()
+    class Test(Schema):
+        fruits = fields.List()
 
     test_a = Test(fruits=['apple', 'orange', 'strawberry'])
     test_b = Test(fruits=[])
@@ -186,11 +186,11 @@ def test_list_validation():
     test_h = Test(fruits={'apple', 'orange'})
     test_i = Test(fruits=True)
     test_j = Test(fruits=5)
-    test_k = Test(fruits=elements.String())
+    test_k = Test(fruits=fields.String())
 
-    invalid_msg = elements.List().message.invalid
-    invalid_string_msg = elements.String().message.invalid
-    invalid_item_msg = elements.List().message.invalid_item
+    invalid_msg = fields.List().message.invalid
+    invalid_string_msg = fields.String().message.invalid
+    invalid_item_msg = fields.List().message.invalid_item
     fruits_invalid_error = {'fruits': {'message': invalid_msg}}
     fruits_invalid_item_error = {'fruits': {'message': invalid_item_msg, 'errors': {'0': {'message': invalid_string_msg}}}}
 
@@ -242,8 +242,8 @@ def test_list_validation():
 
 
 def test_default_value():
-    class Test(Element):
-        active = elements.Boolean(default=True)
+    class Test(Schema):
+        active = fields.Boolean(default=True)
 
     test = Test()
     assert test.serialize()._data == {'active': True}
@@ -251,8 +251,8 @@ def test_default_value():
 
 
 def test_required_field():
-    class Test(Element):
-        name = elements.String(required=True)
+    class Test(Schema):
+        name = fields.String(required=True)
 
     test = Test()
     assert test.serialize().errors == {'name': 'Required Field'}
@@ -260,8 +260,8 @@ def test_required_field():
 
 
 def test_allow_none_field():
-    class Test(Element):
-        age = elements.Integer(allow_none=True)
+    class Test(Schema):
+        age = fields.Integer(allow_none=True)
 
     test = Test(name=2)
     assert test.serialize()._data == {'age': None}
@@ -269,9 +269,9 @@ def test_allow_none_field():
 
 
 def test_multiple_invalid_fields():
-    class Test(Element):
-        name = elements.String(required=True)
-        age = elements.Integer(required=True)
+    class Test(Schema):
+        name = fields.String(required=True)
+        age = fields.Integer(required=True)
 
     test = Test(name=2, age='thirteen')
     assert test.serialize().errors == {'name': {'message': 'Field is not a valid String'}, 

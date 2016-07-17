@@ -1,7 +1,7 @@
-class ElementException(Exception):
+class SchemaException(Exception):
     pass
 
-class InvalidElementException(ElementException):
+class InvalidSchemaException(SchemaException):
 
     def __init__(self, message='', errors=None, *args, **kwargs):
         super().__init__(message, *args, **kwargs)

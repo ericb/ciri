@@ -1,8 +1,8 @@
-from element.abstract import AbstractField, ElementDefault, ElementMissing
-from element.exception import ElementException, SerializationException
+from ciri.abstract import AbstractField, SchemaFieldDefault, SchemaFieldMissing
+from ciri.exception import SchemaException, SerializationException
 
 
-class MetaElement(type):
+class MetaSchema(type):
 
     def __new__(cls, name, bases, attrs):
         klass = type.__new__(cls, name, bases, dict(attrs))
@@ -13,7 +13,7 @@ class MetaElement(type):
             if isinstance(v, AbstractField):
                 klass._fields[k] = v
                 delattr(klass, k)
-                if v.required or v.allow_none or (v.default is not ElementDefault):
+                if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
                     klass._elements[k] = True
         return klass
 
@@ -21,7 +21,7 @@ class MetaElement(type):
         cls._data = {}
 
 
-class Element(metaclass=MetaElement):
+class Schema(metaclass=MetaSchema):
 
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
@@ -44,17 +44,17 @@ class Element(metaclass=MetaElement):
     def validate(self):
         self.errors = {}
         for key in self._elements.keys():
-            klass_value = getattr(self, key, ElementMissing)
-            if (klass_value == ElementMissing) and (self._fields[key].default is not ElementDefault):
+            klass_value = getattr(self, key, SchemaFieldMissing)
+            if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
                 klass_value = self._fields[key].default
-            if self._fields[key].required and (klass_value == ElementMissing):
+            if self._fields[key].required and (klass_value == SchemaFieldMissing):
                 self.errors[key] = self._fields[key].message.required
-            elif self._fields[key].allow_none and (klass_value == ElementMissing):
+            elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 pass
             else:
                 try:
                     self._fields[key].validate(klass_value)
-                except ElementException as e:
+                except SchemaException as e:
                     self.errors[key] = self._parse_errors(e);
         return self
 
@@ -64,19 +64,19 @@ class Element(metaclass=MetaElement):
         if not skip_validation:
             self.validate()
         for key in self._elements.keys():
-            klass_value = getattr(self, key, ElementMissing)
-            if (klass_value == ElementMissing) and (self._fields[key].default is not ElementDefault):
+            klass_value = getattr(self, key, SchemaFieldMissing)
+            if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
                 klass_value = self._fields[key].default
             name = self._fields[key].name
             if name is None:
                 name = key
-            if self._fields[key].allow_none and (klass_value == ElementMissing):
+            if self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 self._data[name] = None
             else:
                 if not self.errors.get(key, None):
                     try:
                         value = self._fields[key].serialize(klass_value)
-                        if klass_value != ElementMissing:
+                        if klass_value != SchemaFieldMissing:
                             self._data[name] = value
                     except SerializationException:
                         pass

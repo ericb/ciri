@@ -1,5 +1,5 @@
-from element.abstract import AbstractField, ElementDefault
-from element.exception import ElementException, InvalidElementException, SerializationException
+from ciri.abstract import AbstractField, SchemaFieldDefault
+from ciri.exception import SchemaException, InvalidSchemaException, SerializationException
 
 
 class FieldErrorMessages():
@@ -48,7 +48,7 @@ class Field(metaclass=MetaField):
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
         self.required = kwargs.get('required', False)
-        self.default = kwargs.get('default', ElementDefault)
+        self.default = kwargs.get('default', SchemaFieldDefault)
         self.allow_none = kwargs.get('allow_none', False)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
@@ -70,7 +70,7 @@ class String(Field):
 
     def validate(self, value):
         if str(value) != value:
-            raise InvalidElementException(self.message.invalid)
+            raise InvalidSchemaException(self.message.invalid)
 
 
 class Integer(Field):
@@ -84,7 +84,7 @@ class Integer(Field):
 
     def validate(self, value):
         if not isinstance(value, int) or (type(value) != int):
-            raise InvalidElementException(self.message.invalid)
+            raise InvalidSchemaException(self.message.invalid)
 
 
 class Boolean(Field):
@@ -98,7 +98,7 @@ class Boolean(Field):
 
     def validate(self, value):
         if not isinstance(value, bool) or (type(value) != bool):
-            raise InvalidElementException(self.message.invalid)
+            raise InvalidSchemaException(self.message.invalid)
 
 
 class Dict(Field):
@@ -110,7 +110,7 @@ class Dict(Field):
 
     def validate(self, value):
         if not isinstance(value, dict):
-            raise InvalidElementException(self.message.invalid)
+            raise InvalidSchemaException(self.message.invalid)
 
 
 class List(Field):
@@ -134,13 +134,13 @@ class List(Field):
     def validate(self, value):
         errors = {}
         if not isinstance(value, list):
-            raise InvalidElementException(self.message.invalid)
+            raise InvalidSchemaException(self.message.invalid)
         for k, v in enumerate(value):
             try:
                 self.field.validate(v)
-            except ElementException as e:
+            except SchemaException as e:
                 errors[k] = e
         if errors:
-            raise InvalidElementException(self.message.invalid_item, errors=errors)
+            raise InvalidSchemaException(self.message.invalid_item, errors=errors)
 
 
