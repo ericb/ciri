@@ -1,6 +1,7 @@
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField
+from ciri.compat import add_metaclass
 from ciri.exception import SchemaException, SerializationException
 
 
@@ -25,7 +26,8 @@ class MetaSchema(ABCMeta):
         return klass
 
 
-class Schema(metaclass=MetaSchema):
+@add_metaclass(MetaSchema)
+class Schema(object):
 
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
@@ -35,7 +37,7 @@ class Schema(metaclass=MetaSchema):
     def __setattr__(self, k, v):
         if self._fields.get(k):
             self._elements[k] = True
-        super().__setattr__(k, v)
+        super(Schema, self).__setattr__(k, v)
 
     def _parse_errors(self, exc):
         data = {'message': str(exc)}

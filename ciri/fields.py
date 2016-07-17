@@ -2,10 +2,11 @@ from abc import ABCMeta
 
 from ciri.abstract import AbstractField
 from ciri.core import SchemaFieldDefault
+from ciri.compat import add_metaclass
 from ciri.exception import SchemaException, InvalidSchemaException, SerializationException
 
 
-class FieldErrorMessages():
+class FieldErrorMessages(object):
 
     def __init__(self, *args, **kwargs):
         self._messages = {
@@ -15,7 +16,7 @@ class FieldErrorMessages():
         self._messages.update(kwargs)
 
 
-class FieldMessageContainer():
+class FieldMessageContainer(object):
 
     def __init__(self, field):
         self._field = field
@@ -46,7 +47,8 @@ class MetaField(ABCMeta):
         return klass
 
 
-class Field(metaclass=MetaField):
+@add_metaclass(MetaField)
+class Field(object):
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)

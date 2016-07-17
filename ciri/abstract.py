@@ -1,5 +1,14 @@
 from abc import ABCMeta
 
+from ciri.compat import add_metaclass
 
-class AbstractField(metaclass=ABCMeta):
+
+@add_metaclass(ABCMeta)
+class AbstractField(object):
+    pass
+
+class SchemaFieldDefault(object):
+    pass
+
+class SchemaFieldMissing(object):
     pass
