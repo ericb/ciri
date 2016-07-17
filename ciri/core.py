@@ -44,7 +44,7 @@ class Schema(object):
         if hasattr(exc, '_errors'):
             data['errors'] = {}
             for k, v in exc._errors.items():
-                data['errors'][str(k)] = self._parse_errors(v);
+                data['errors'][str(k)] = self._parse_errors(v)
         return data
 
     def validate(self, data):
@@ -74,7 +74,7 @@ class Schema(object):
                 try:
                     self._fields[key].validate(klass_value)
                 except SchemaException as e:
-                    self.errors[key] = self._parse_errors(e);
+                    self.errors[key] = self._parse_errors(e)
         return self
 
     def serialize(self, data, skip_validation=False):

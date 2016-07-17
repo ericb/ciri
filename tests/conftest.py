@@ -1,12 +1,12 @@
-import pytest
-
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.core import Schema
+import pytest
+
 from ciri import fields
+from ciri.core import Schema
 
 
 @pytest.fixture

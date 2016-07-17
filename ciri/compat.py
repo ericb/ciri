@@ -1,5 +1,6 @@
 # six 1.9.0
 
+
 # https://github.com/kelp404/six/blob/30b8641f5b25e095c1f7ca1c8b82b3c0f9925f48/six.py#L782-L795
 def add_metaclass(metaclass):
     """Class decorator for creating a class with a metaclass."""

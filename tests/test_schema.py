@@ -1,7 +1,7 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
 from ciri.core import Schema
@@ -29,7 +29,7 @@ def test_string_validation():
         label = fields.String()
 
     schema = Test()
-    errors = {'label': {'message': fields.String().message.invalid }}
+    errors = {'label': {'message': fields.String().message.invalid}}
 
     assert schema.serialize({'label': 'hello world'}) == {'label': 'hello world'}
     assert not schema.errors
@@ -55,7 +55,7 @@ def test_integer_validation():
         count = fields.Integer()
 
     schema = Test()
-    errors = {'count': {'message': fields.Integer().message.invalid }}
+    errors = {'count': {'message': fields.Integer().message.invalid}}
 
     assert schema.serialize({'count': 5}) == {'count': 5}
     assert not schema.errors
@@ -152,7 +152,8 @@ def test_list_validation():
         'errors': {'0': {'message': fields.String().message.invalid}}}
     }
 
-    assert schema.serialize({'fruits': ['apple', 'orange', 'strawberry']}) == {'fruits': ['apple', 'orange', 'strawberry']}
+    result = schema.serialize({'fruits': ['apple', 'orange', 'strawberry']})
+    assert result == {'fruits': ['apple', 'orange', 'strawberry']}
     assert not schema.errors
 
     assert schema.serialize({'fruits': []}) == {'fruits': []}
@@ -164,9 +165,9 @@ def test_list_validation():
     assert schema.serialize({'fruits': [False]}) == {}
     assert schema.errors == fruits_items_errors
 
-    assert schema.serialize({'fruits': [1,2,3]}) == {}
+    assert schema.serialize({'fruits': [1, 2, 3]}) == {}
     assert schema.errors == {'fruits': {
-        'message': fields.List().message.invalid_item, 
+        'message': fields.List().message.invalid_item,
         'errors': {
             '0': {
                 'message': fields.String().message.invalid
@@ -180,7 +181,7 @@ def test_list_validation():
         }
     }}
 
-    assert schema.serialize({'fruits': [[1,2]]}) == {}
+    assert schema.serialize({'fruits': [[1, 2]]}) == {}
     assert schema.errors == fruits_items_errors
 
     assert schema.serialize({'fruits': None}) == {}
@@ -197,6 +198,7 @@ def test_list_validation():
 
     assert schema.serialize({'fruits': fields.String()}) == {}
     assert schema.errors == fruits_errors
+
 
 def test_default_value():
     class Test(Schema):

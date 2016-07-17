@@ -1,9 +1,9 @@
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField
-from ciri.core import SchemaFieldDefault
 from ciri.compat import add_metaclass
-from ciri.exception import SchemaException, InvalidSchemaException, SerializationException
+from ciri.core import SchemaFieldDefault
+from ciri.exception import InvalidSchemaException, SchemaException, SerializationException
 
 
 class FieldErrorMessages(object):
@@ -39,9 +39,11 @@ class MetaField(ABCMeta):
         if getattr(klass, 'new', None):
             constructor = klass.__init__
             new_constructor = klass.new
+
             def field_init(self, *args, **kwargs):
                 constructor(self, *args, **kwargs)
                 new_constructor(self, *args, **kwargs)
+
             klass.__init__ = field_init
             delattr(klass, 'new')
         return klass
@@ -62,7 +64,8 @@ class Field(object):
         raise NotImplementedError
 
     def validate(self, value):
-        raise NotImplementedError 
+        raise NotImplementedError
+
 
 class String(Field):
 
@@ -147,5 +150,3 @@ class List(Field):
                 errors[k] = e
         if errors:
             raise InvalidSchemaException(self.message.invalid_item, errors=errors)
-
-
