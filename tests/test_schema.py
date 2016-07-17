@@ -81,85 +81,70 @@ def test_integer_validation():
     assert schema.serialize({'count': 50.3})._data == {}
     assert schema.errors == errors
 
-"""
+
 def test_boolean_validation():
     class Test(Schema):
         active = fields.Boolean()
 
-    test_a = Test(active=False)
-    test_b = Test(active=True)
-    test_c = Test(active=3)
-    test_d = Test(active='True')
-    test_e = Test(active={})
-    test_f = Test(active=[])
-    test_g = Test(active=None)
+    schema = Test()
+    errors = {'active': {'message': fields.Boolean().message.invalid}}
 
-    invalid_msg = fields.Boolean().message.invalid
-    active_invalid_error = {'active': {'message': invalid_msg}}
+    assert schema.serialize({'active': False})._data == {'active': False}
+    assert not schema.errors
 
-    assert test_a.serialize()._data == {'active': False}
-    assert not test_a.errors
+    assert schema.serialize({'active': True})._data == {'active': True}
+    assert not schema.errors
 
-    assert test_b.serialize()._data == {'active': True}
-    assert not test_b.errors
+    assert schema.serialize({'active': 3})._data == {}
+    assert schema.errors == errors
 
-    assert test_c.serialize()._data == {}
-    assert test_c.errors == active_invalid_error
+    assert schema.serialize({'active': 'True'})._data == {}
+    assert schema.errors == errors
 
-    assert test_d.serialize()._data == {}
-    assert test_d.errors == active_invalid_error
+    assert schema.serialize({'active': {}})._data == {}
+    assert schema.errors == errors
 
-    assert test_e.serialize()._data == {}
-    assert test_e.errors == active_invalid_error
+    assert schema.serialize({'active': []})._data == {}
+    assert schema.errors == errors
 
-    assert test_f.serialize()._data == {}
-    assert test_f.errors == active_invalid_error
-
-    assert test_g.serialize()._data == {}
-    assert test_g.errors == active_invalid_error
+    assert schema.serialize({'active': None})._data == {}
+    assert schema.errors == errors
 
 
 def test_dict_validation():
     class Test(Schema):
         mapping = fields.Dict()
 
-    test_a = Test(mapping={'foo': 'bar'})
-    test_b = Test(mapping={'foo': Test})
-    test_c = Test(mapping={})
-    test_d = Test(mapping=dict(foo='bar'))
-    test_e = Test(mapping=None)
-    test_f = Test(mapping=4)
-    test_g = Test(mapping=True)
+    schema = Test()
+    errors = {'mapping': {'message': fields.Dict().message.invalid}}
 
-    invalid_msg = fields.Dict().message.invalid
-    mapping_invalid_error = {'mapping': {'message': invalid_msg}}
+    assert schema.serialize({'mapping': {'foo': 'bar'}})._data == {'mapping': {'foo': 'bar'}}
+    assert not schema.errors
 
-    assert test_a.serialize()._data == {'mapping': {'foo': 'bar'}}
-    assert not test_a.errors
+    assert schema.serialize({'mapping': {'foo': Test}})._data == {'mapping': {'foo': Test}}
+    assert not schema.errors
 
-    assert test_b.serialize()._data == {'mapping': {'foo': Test}}
-    assert not test_b.errors
+    assert schema.serialize({'mapping': {}})._data == {'mapping': {}}
+    assert not schema.errors
 
-    assert test_c.serialize()._data == {'mapping': {}}
-    assert not test_c.errors
+    assert schema.serialize({'mapping': dict(foo='bar')})._data == {'mapping': {'foo': 'bar'}}
+    assert not schema.errors
 
-    assert test_d.serialize()._data == {'mapping': {'foo': 'bar'}}
-    assert not test_d.errors
+    assert schema.serialize({'mapping': None})._data == {}
+    assert schema.errors == errors
 
-    assert test_e.serialize()._data == {}
-    assert test_e.errors == mapping_invalid_error
+    assert schema.serialize({'mapping': 4})._data == {}
+    assert schema.errors == errors
 
-    assert test_f.serialize()._data == {}
-    assert test_f.errors == mapping_invalid_error
-
-    assert test_g.serialize()._data == {}
-    assert test_g.errors == mapping_invalid_error
+    assert schema.serialize({'mapping': True})._data == {}
+    assert schema.errors == errors
 
 
 def test_list_validation():
     class Test(Schema):
         fruits = fields.List()
 
+    schema = Test()
     test_a = Test(fruits=['apple', 'orange', 'strawberry'])
     test_b = Test(fruits=[])
     test_c = Test(fruits=list(('apple',)))
@@ -172,75 +157,74 @@ def test_list_validation():
     test_j = Test(fruits=5)
     test_k = Test(fruits=fields.String())
 
-    invalid_msg = fields.List().message.invalid
-    invalid_string_msg = fields.String().message.invalid
-    invalid_item_msg = fields.List().message.invalid_item
-    fruits_invalid_error = {'fruits': {'message': invalid_msg}}
-    fruits_invalid_item_error = {'fruits': {'message': invalid_item_msg, 'errors': {'0': {'message': invalid_string_msg}}}}
+    fruits_errors = {'fruits': {'message': fields.List().message.invalid}}
+    fruits_items_errors = {'fruits': {
+        'message': fields.List().message.invalid_item,
+        'errors': {'0': {'message': fields.String().message.invalid}}}
+    }
 
-    assert test_a.serialize()._data == {'fruits': ['apple', 'orange', 'strawberry']}
-    assert not test_a.errors
+    assert schema.serialize({'fruits': ['apple', 'orange', 'strawberry']})._data == {'fruits': ['apple', 'orange', 'strawberry']}
+    assert not schema.errors
 
-    assert test_b.serialize()._data == {'fruits': []}
-    assert not test_b.errors
+    assert schema.serialize({'fruits': []})._data == {'fruits': []}
+    assert not schema.errors
 
-    assert test_c.serialize()._data == {'fruits': ['apple']}
-    assert not test_c.errors
+    assert schema.serialize({'fruits': list(('apple',))})._data == {'fruits': ['apple']}
+    assert not schema.errors
 
-    assert test_d.serialize()._data == {}
-    assert test_d.errors == fruits_invalid_item_error
+    assert schema.serialize({'fruits': [False]})._data == {}
+    assert schema.errors == fruits_items_errors
 
-    assert test_e.serialize()._data == {}
-    assert test_e.errors == {'fruits': {
-        'message': invalid_item_msg, 
+    assert schema.serialize({'fruits': [1,2,3]})._data == {}
+    assert schema.errors == {'fruits': {
+        'message': fields.List().message.invalid_item, 
         'errors': {
             '0': {
-                'message': invalid_string_msg
+                'message': fields.String().message.invalid
             },
             '1': {
-                'message': invalid_string_msg
+                'message': fields.String().message.invalid
             },
             '2': {
-                'message': invalid_string_msg
+                'message': fields.String().message.invalid
             }
         }
     }}
 
-    assert test_f.serialize()._data == {}
-    assert test_f.errors == fruits_invalid_item_error
+    assert schema.serialize({'fruits': [[1,2]]})._data == {}
+    assert schema.errors == fruits_items_errors
 
-    assert test_g.serialize()._data == {}
-    assert test_g.errors == fruits_invalid_error
+    assert schema.serialize({'fruits': None})._data == {}
+    assert schema.errors == fruits_errors
 
-    assert test_h.serialize()._data == {}
-    assert test_h.errors == fruits_invalid_error
+    assert schema.serialize({'fruits': {'apple', 'orange'}})._data == {}
+    assert schema.errors == fruits_errors
 
-    assert test_i.serialize()._data == {}
-    assert test_i.errors == fruits_invalid_error
+    assert schema.serialize({'fruits': True})._data == {}
+    assert schema.errors == fruits_errors
 
-    assert test_j.serialize()._data == {}
-    assert test_j.errors == fruits_invalid_error
+    assert schema.serialize({'fruits': 5})._data == {}
+    assert schema.errors == fruits_errors
 
-    assert test_k.serialize()._data == {}
-    assert test_k.errors == fruits_invalid_error
+    assert schema.serialize({'fruits': fields.String()})._data == {}
+    assert schema.errors == fruits_errors
 
-
+"""
 def test_default_value():
     class Test(Schema):
         active = fields.Boolean(default=True)
 
-    test = Test()
-    assert test.serialize()._data == {'active': True}
-    assert not test.errors
-
+    schema = Test()
+    assert schema.serialize({})._data == {'active': True}
+    assert not schema.errors
 
 def test_required_field():
     class Test(Schema):
         name = fields.String(required=True)
 
-    test = Test()
-    assert test.serialize().errors == {'name': 'Required Field'}
-    assert test._data == {}
+    schema = Test()
+    assert schema.serialize({}).errors == {'name': 'Required Field'}
+    assert schema._data == {}
 
 
 def test_allow_none_field():
