@@ -41,12 +41,19 @@ class Schema(metaclass=MetaSchema):
                 data['errors'][str(k)] = self._parse_errors(v);
         return data
 
-    def validate(self):
+    def validate(self, data):
         self.errors = {}
-        for key in self._elements.keys():
-            klass_value = getattr(self, key, SchemaFieldMissing)
+        for key in data.keys():
+            # field value
+            klass_value = data.get(key, SchemaFieldMissing)
+
+            # if the field is missing, set the default value
             if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
                 klass_value = self._fields[key].default
+
+            # if the field is missing, but it's required, set an error.
+            # if a value of None is allowed and we do not have a field, skip validation
+            # otherwise, validate the value
             if self._fields[key].required and (klass_value == SchemaFieldMissing):
                 self.errors[key] = self._fields[key].message.required
             elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
@@ -58,21 +65,30 @@ class Schema(metaclass=MetaSchema):
                     self.errors[key] = self._parse_errors(e);
         return self
 
-    def serialize(self, skip_validation=False):
-        
+    def serialize(self, data, skip_validation=False):
         self._data = {}
+
         if not skip_validation:
-            self.validate()
-        for key in self._elements.keys():
-            klass_value = getattr(self, key, SchemaFieldMissing)
+            self.validate(data)
+
+        for key in data.keys():
+            # field value
+            klass_value = data.get(key, SchemaFieldMissing)
+
+            # if the field is missing, set the default value
             if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
                 klass_value = self._fields[key].default
+
+            # determine the field result name
             name = self._fields[key].name
             if name is None:
                 name = key
+
+            # if it's allowed, and the field is missing, set the value to None
             if self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 self._data[name] = None
             else:
+                # if we have something to work with, try and serialize it
                 if not self.errors.get(key, None):
                     try:
                         value = self._fields[key].serialize(klass_value)
