@@ -1,5 +1,5 @@
-from abc import ABC
+from abc import ABCMeta
 
 
-class AbstractField(ABC):
+class AbstractField(metaclass=ABCMeta):
     pass
