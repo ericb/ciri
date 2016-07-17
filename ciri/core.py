@@ -1,3 +1,5 @@
+import copy
+
 from ciri.abstract import AbstractField, SchemaFieldDefault, SchemaFieldMissing
 from ciri.exception import SchemaException, SerializationException
 
@@ -40,7 +42,13 @@ class Schema(metaclass=MetaSchema):
 
     def validate(self, data):
         self.errors = {}
-        for key in data.keys():
+
+        elements = self._elements.copy()
+        for k, v in data.items():
+            if self._fields.get(k):
+                elements[k] = True
+
+        for key in elements.keys():
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
 
@@ -64,11 +72,16 @@ class Schema(metaclass=MetaSchema):
 
     def serialize(self, input_, skip_validation=False):
         output = {}
+        self._data = {}
+        elements = self._elements.copy()
+        for k, v in input.items():
+            if self._fields.get(k):
+                elements[k] = True
 
         if not skip_validation:
             self.validate(input_)
 
-        for key in input_.keys():
+        for key in elements.keys():
             # field value
             klass_value = input_.get(key, SchemaFieldMissing)
 

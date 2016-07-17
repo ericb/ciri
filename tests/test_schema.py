@@ -209,7 +209,6 @@ def test_list_validation():
     assert schema.serialize({'fruits': fields.String()}) == {}
     assert schema.errors == fruits_errors
 
-"""
 def test_default_value():
     class Test(Schema):
         active = fields.Boolean(default=True)
@@ -217,6 +216,7 @@ def test_default_value():
     schema = Test()
     assert schema.serialize({}) == {'active': True}
     assert not schema.errors
+
 
 def test_required_field():
     class Test(Schema):
@@ -231,9 +231,9 @@ def test_allow_none_field():
     class Test(Schema):
         age = fields.Integer(allow_none=True)
 
-    test = Test(name=2)
-    assert test.serialize() == {'age': None}
-    assert not test.errors
+    schema = Test()
+    assert schema.serialize({'name': 2})._data == {'age': None}
+    assert not schema.errors
 
 
 def test_multiple_invalid_fields():
@@ -241,7 +241,8 @@ def test_multiple_invalid_fields():
         name = fields.String(required=True)
         age = fields.Integer(required=True)
 
-    test = Test(name=2, age='thirteen')
-    assert test.serialize().errors == {'name': {'message': 'Field is not a valid String'}, 
-                                       'age': {'message': 'Field is not a valid Integer'}}
-"""
+    errors = {'name': {'message': 'Field is not a valid String'},
+              'age': {'message': 'Field is not a valid Integer'}}
+
+    schema = Test()
+    assert schema.serialize({'name': 2, 'age': 'thirteen'}).errors == errors
