@@ -1,4 +1,7 @@
-from ciri.abstract import AbstractField, SchemaFieldDefault
+from abc import ABCMeta
+
+from ciri.abstract import AbstractField
+from ciri.core import SchemaFieldDefault
 from ciri.exception import SchemaException, InvalidSchemaException, SerializationException
 
 
@@ -24,7 +27,7 @@ class FieldMessageContainer():
             return self._field.messages._messages[name]
 
 
-class MetaField(type):
+class MetaField(ABCMeta):
 
     def __new__(cls, name, bases, attrs):
         klass = type.__new__(cls, name, bases + (AbstractField,), dict(attrs))

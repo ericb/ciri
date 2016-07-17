@@ -1,8 +1,5 @@
-class AbstractField():
-    pass
+from abc import ABC
 
-class SchemaFieldDefault():
-    pass
 
-class SchemaFieldMissing():
+class AbstractField(ABC):
     pass

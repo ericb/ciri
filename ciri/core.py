@@ -1,10 +1,15 @@
-import copy
+from abc import ABCMeta
 
-from ciri.abstract import AbstractField, SchemaFieldDefault, SchemaFieldMissing
+from ciri.abstract import AbstractField
 from ciri.exception import SchemaException, SerializationException
 
 
-class MetaSchema(type):
+# Type Definitions
+SchemaFieldDefault = type('SchemaFieldDefault', (object,), {})
+SchemaFieldMissing = type('SchemaFieldMissing', (object,), {})
+
+
+class MetaSchema(ABCMeta):
 
     def __new__(cls, name, bases, attrs):
         klass = type.__new__(cls, name, bases, dict(attrs))
