@@ -28,10 +28,10 @@ class FieldMessageContainer(object):
             return self._field.messages._messages[name]
 
 
-class MetaField(ABCMeta):
+class AbstractBaseField(ABCMeta):
 
     def __new__(cls, name, bases, attrs):
-        klass = type.__new__(cls, name, bases + (AbstractField,), dict(attrs))
+        klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         if isinstance(attrs.get('messages'), FieldErrorMessages):
             klass.messages = attrs.get('messages')
         else:
@@ -49,8 +49,8 @@ class MetaField(ABCMeta):
         return klass
 
 
-@add_metaclass(MetaField)
-class Field(object):
+@add_metaclass(AbstractBaseField)
+class Field(AbstractField):
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)

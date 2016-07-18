@@ -10,14 +10,15 @@ SchemaFieldDefault = type('SchemaFieldDefault', (object,), {})
 SchemaFieldMissing = type('SchemaFieldMissing', (object,), {})
 
 
-class MetaSchema(ABCMeta):
+class AbstractBaseSchema(ABCMeta):
 
     def __new__(cls, name, bases, attrs):
-        klass = type.__new__(cls, name, bases, dict(attrs))
+        klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         klass._elements = {}
         klass._fields = {}
         klass.errors = None
         for k, v in attrs.items():
+            print('hrm:', type(v), isinstance(v, AbstractField))
             if isinstance(v, AbstractField):
                 klass._fields[k] = v
                 delattr(klass, k)
@@ -26,7 +27,7 @@ class MetaSchema(ABCMeta):
         return klass
 
 
-@add_metaclass(MetaSchema)
+@add_metaclass(AbstractBaseSchema)
 class Schema(object):
 
     def __init__(self, *args, **kwargs):
@@ -87,6 +88,9 @@ class Schema(object):
         if not skip_validation:
             self.validate(data)
 
+        print(elements)
+        print(data)
+        print(self._fields)
         for key in elements.keys():
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
