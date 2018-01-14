@@ -26,6 +26,14 @@ def test_not_allowed_empty():
         schema.serialize({'foo': ''})
     assert schema._raw_errors['foo'].message == String().message.empty
 
+def test_not_allowed_empty_with_whitespace():
+    class S(Schema):
+        foo = String(allow_empty=False)
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'foo': ' '})
+    assert schema._raw_errors['foo'].message == String().message.empty
+
 
 @pytest.mark.parametrize("value", [
     1,

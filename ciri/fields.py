@@ -89,6 +89,7 @@ class String(Field):
 
     def new(self, *args, **kwargs):
         self.allow_empty = kwargs.get('allow_empty', True)
+        self.trim = kwargs.get('trim', True)
 
     def serialize(self, value):
         if isinstance(value, str):
@@ -98,8 +99,11 @@ class String(Field):
     def validate(self, value):
         if not isinstance(value, str) or str(value) != value:
             raise FieldValidationError(FieldError(self, 'invalid'))
+        if self.trim:
+            value = value.strip() 
         if value == '' and not self.allow_empty:
             raise FieldValidationError(FieldError(self, 'empty'))
+
 
 
 class Integer(Field):
