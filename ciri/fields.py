@@ -219,4 +219,4 @@ class Schema(Field):
         try:
             schema.validate(value)
         except ValidationError as e:
-            raise FieldValidationError(FieldError(self, 'invalid', errors=schema.raw_errors))
+            raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))

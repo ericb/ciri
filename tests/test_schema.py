@@ -20,7 +20,7 @@ def test_schema_validation():
     schema = S()
     with pytest.raises(ValidationError):
         schema.validate({'foo': {}})
-    assert schema.raw_errors['foo'].errors['a'].message == String().message.required
+    assert schema._raw_errors['foo'].errors['a'].message == String().message.required
 
 
 def test_schema_validation():
@@ -29,7 +29,7 @@ def test_schema_validation():
     schema = S()
     with pytest.raises(ValidationError):
         schema.validate({'foo': {}})
-    assert schema.raw_errors['foo'].errors['a'].message == String().message.required
+    assert schema._raw_errors['foo'].errors['a'].message == String().message.required
 
 
 def test_schema_serialization():

@@ -24,7 +24,7 @@ def test_not_allowed_empty():
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': ''})
-    assert schema.raw_errors['foo'].message == String().message.empty
+    assert schema._raw_errors['foo'].message == String().message.empty
 
 
 @pytest.mark.parametrize("value", [
@@ -42,4 +42,4 @@ def test_invalid_values(value):
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
-    assert schema.raw_errors['foo'].message == String().message.invalid
+    assert schema._raw_errors['foo'].message == String().message.invalid

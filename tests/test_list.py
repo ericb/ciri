@@ -29,7 +29,7 @@ def test_invalid_values(value):
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
-    assert schema.raw_errors['foo'].message == List().message.invalid
+    assert schema._raw_errors['foo'].message == List().message.invalid
 
 @pytest.mark.parametrize("item_type,value", [
     [String(), 1],
@@ -43,4 +43,4 @@ def test_invalid_items(item_type, value):
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': [value]})
-    assert schema.raw_errors['foo'].message == List().message.invalid_item
+    assert schema._raw_errors['foo'].message == List().message.invalid_item

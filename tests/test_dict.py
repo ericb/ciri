@@ -25,7 +25,7 @@ def test_invalid_values(value):
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
-    assert schema.raw_errors['foo'].message == Dict().message.invalid
+    assert schema._raw_errors['foo'].message == Dict().message.invalid
 
 
 def test_dict_subclass():

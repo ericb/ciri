@@ -35,7 +35,7 @@ def test_required_field():
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({})
-    assert schema.raw_errors['name'].message == fields.String().message.required
+    assert schema._raw_errors['name'].message == fields.String().message.required
 
 
 def test_allow_none_field():

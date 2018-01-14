@@ -24,4 +24,4 @@ def test_invalid_values(value):
     schema = B()
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
-    assert schema.raw_errors['foo'].message == Boolean().message.invalid
+    assert schema._raw_errors['foo'].message == Boolean().message.invalid

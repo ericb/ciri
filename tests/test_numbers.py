@@ -15,7 +15,7 @@ def test_non_strict_float_validation():
         num = Float(strict=False)
     schema = N()
     schema.validate({'num': 1})
-    assert not schema.raw_errors
+    assert not schema._raw_errors
 
 
 def test_non_strict_float_serialization():
@@ -41,7 +41,7 @@ def test_invalid_int_values(value):
     schema = N()
     with pytest.raises(ValidationError):
         schema.serialize({'num': value})
-    assert schema.raw_errors['num'].message == Integer().message.invalid
+    assert schema._raw_errors['num'].message == Integer().message.invalid
 
 
 @pytest.mark.parametrize("value", [
@@ -60,4 +60,4 @@ def test_invalid_float_values(value):
     schema = N()
     with pytest.raises(ValidationError):
         schema.serialize({'num': value})
-    assert schema.raw_errors['num'].message == Float().message.invalid
+    assert schema._raw_errors['num'].message == Float().message.invalid

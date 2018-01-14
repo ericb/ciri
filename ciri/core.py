@@ -32,9 +32,9 @@ class Schema(object):
         for k, v in kwargs.items():
             if self._fields.get(k):
                 setattr(self, k, kwargs[k])
-        self.raw_errors = None
-        self.error_handler = kwargs.get('error_handler', ErrorHandler)()
-        self.registry = kwargs.get('schema_registry', schema_registry)
+        self._raw_errors = None
+        self._error_handler = kwargs.get('error_handler', ErrorHandler)()
+        self._registry = kwargs.get('schema_registry', schema_registry)
 
     def __setattr__(self, k, v):
         if self._fields.get(k):
@@ -43,14 +43,14 @@ class Schema(object):
 
     @property
     def errors(self):
-        return self.error_handler.errors
+        return self._error_handler.errors
 
     def pre_process(self, data):
         pass
 
     def validate(self, data, halt_on_error=False):
-        self.raw_errors = {}
-        self.error_handler.reset()
+        self._raw_errors = {}
+        self._error_handler.reset()
 
         elements = self._elements.copy()
         if hasattr(data, '__dict__'):
@@ -75,16 +75,16 @@ class Schema(object):
             # otherwise, validate the value
             if self._fields[key].required and (klass_value == SchemaFieldMissing):
                 field_err = FieldError(self._fields[key], 'required')
-                self.raw_errors[str_key] = field_err
-                self.error_handler.add(str_key, field_err)
+                self._raw_errors[str_key] = field_err
+                self._error_handler.add(str_key, field_err)
             elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 pass
             else:
                 try:
                     self._fields[key].validate(klass_value)
                 except FieldValidationError as field_exc:
-                    self.raw_errors[str_key] = field_exc.error
-                    self.error_handler.add(str_key, field_exc.error)
+                    self._raw_errors[str_key] = field_exc.error
+                    self._error_handler.add(str_key, field_exc.error)
             if self.errors and halt_on_error:
                 break
 
