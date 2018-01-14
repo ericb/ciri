@@ -1,30 +1,28 @@
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField
+from ciri.abstract import AbstractField, AbstractBaseSchema, SchemaFieldDefault, SchemaFieldMissing
 from ciri.compat import add_metaclass
-from ciri.exception import SchemaException, SerializationException
+from ciri.exception import SchemaException, SerializationException, ValidationError, FieldValidationError
+from ciri.fields import FieldError
+from ciri.registry import schema_registry
 
 
-# Type Definitions
-SchemaFieldDefault = type('SchemaFieldDefault', (object,), {})
-SchemaFieldMissing = type('SchemaFieldMissing', (object,), {})
+class ErrorHandler(object):
 
+    def __init__(self, errors=None):
+        self.errors = {}
 
-class AbstractBaseSchema(ABCMeta):
+    def reset(self):
+        self.errors = {}
 
-    def __new__(cls, name, bases, attrs):
-        klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
-        klass._elements = {}
-        klass._fields = {}
-        klass.errors = None
-        for k, v in attrs.items():
-            print('hrm:', type(v), isinstance(v, AbstractField))
-            if isinstance(v, AbstractField):
-                klass._fields[k] = v
-                delattr(klass, k)
-                if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
-                    klass._elements[k] = True
-        return klass
+    def add(self, key, field_error):
+        key = str(key)
+        self.errors[key] = {'msg': field_error.message}
+        if field_error.errors:
+            handler = self.__class__()
+            for k, v in field_error.errors.items():
+                handler.add(k, v)
+            self.errors[key]['errors'] = handler.errors
 
 
 @add_metaclass(AbstractBaseSchema)
@@ -34,29 +32,37 @@ class Schema(object):
         for k, v in kwargs.items():
             if self._fields.get(k):
                 setattr(self, k, kwargs[k])
+        self.raw_errors = None
+        self.error_handler = kwargs.get('error_handler', ErrorHandler)()
+        self.registry = kwargs.get('schema_registry', schema_registry)
 
     def __setattr__(self, k, v):
         if self._fields.get(k):
             self._elements[k] = True
         super(Schema, self).__setattr__(k, v)
 
-    def _parse_errors(self, exc):
-        data = {'message': str(exc)}
-        if hasattr(exc, '_errors'):
-            data['errors'] = {}
-            for k, v in exc._errors.items():
-                data['errors'][str(k)] = self._parse_errors(v)
-        return data
+    @property
+    def errors(self):
+        return self.error_handler.errors
 
-    def validate(self, data):
-        self.errors = {}
+    def pre_process(self, data):
+        pass
+
+    def validate(self, data, halt_on_error=False):
+        self.raw_errors = {}
+        self.error_handler.reset()
 
         elements = self._elements.copy()
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+
         for k, v in data.items():
             if self._fields.get(k):
                 elements[k] = True
 
         for key in elements.keys():
+            str_key = str(key)
+
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
 
@@ -68,29 +74,40 @@ class Schema(object):
             # if a value of None is allowed and we do not have a field, skip validation
             # otherwise, validate the value
             if self._fields[key].required and (klass_value == SchemaFieldMissing):
-                self.errors[key] = self._fields[key].message.required
+                field_err = FieldError(self._fields[key], 'required')
+                self.raw_errors[str_key] = field_err
+                self.error_handler.add(str_key, field_err)
             elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 pass
             else:
                 try:
                     self._fields[key].validate(klass_value)
-                except SchemaException as e:
-                    self.errors[key] = self._parse_errors(e)
+                except FieldValidationError as field_exc:
+                    self.raw_errors[str_key] = field_exc.error
+                    self.error_handler.add(str_key, field_exc.error)
+            if self.errors and halt_on_error:
+                break
+
+        if self.errors:
+            raise ValidationError()
         return self
 
-    def serialize(self, data, skip_validation=False):
+    def serialize(self, data=None, skip_validation=False):
         output = {}
         elements = self._elements.copy()
-        for k, v in data.items():
+        if data is None:
+            data = self
+
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+
+        for k in data:
             if self._fields.get(k):
                 elements[k] = True
 
         if not skip_validation:
             self.validate(data)
 
-        print(elements)
-        print(data)
-        print(self._fields)
         for key in elements.keys():
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
@@ -99,7 +116,7 @@ class Schema(object):
             if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
                 klass_value = self._fields[key].default
 
-            # determine the field result name
+            # determine the field result name (serialized name)
             name = self._fields[key].name
             if name is None:
                 name = key

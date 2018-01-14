@@ -7,11 +7,3 @@ import pytest
 
 from ciri import fields
 from ciri.core import Schema
-
-
-@pytest.fixture
-def person():
-    class Person(Schema):
-        name = fields.String()
-
-    return Person(name='jack')

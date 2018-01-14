@@ -1,9 +1,18 @@
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField
+from ciri.abstract import AbstractField, AbstractBaseSchema, SchemaFieldDefault, SchemaFieldMissing
 from ciri.compat import add_metaclass
-from ciri.core import SchemaFieldDefault
-from ciri.exception import InvalidSchemaException, SchemaException, SerializationException
+from ciri.registry import schema_registry
+from ciri.exception import InvalidSchemaException, SchemaException, SerializationException, RegistryError, ValidationError, FieldValidationError
+
+
+class FieldError(object):
+
+    def __init__(self, field_cls, field_msg_key, errors=None, *args, **kwargs):
+        self.field = field_cls
+        self.message_key = field_msg_key
+        self.message = field_cls.message[field_msg_key]
+        self.errors = errors
 
 
 class FieldErrorMessages(object):
@@ -22,6 +31,12 @@ class FieldMessageContainer(object):
         self._field = field
 
     def __getattr__(self, name):
+        if self._field._messages.get(name):
+            return self._field_messages[name]
+        else:
+            return self._field.messages._messages[name]
+
+    def __getitem__(self, name):
         if self._field._messages.get(name):
             return self._field_messages[name]
         else:
@@ -69,7 +84,11 @@ class Field(AbstractField):
 
 class String(Field):
 
-    messages = {'invalid': 'Field is not a valid String'}
+    messages = {'invalid': 'Field is not a valid String',
+                'empty': 'Field cannot be empty'}
+
+    def new(self, *args, **kwargs):
+        self.allow_empty = kwargs.get('allow_empty', True)
 
     def serialize(self, value):
         if isinstance(value, str):
@@ -77,8 +96,10 @@ class String(Field):
         raise SerializationException
 
     def validate(self, value):
-        if str(value) != value:
-            raise InvalidSchemaException(self.message.invalid)
+        if not isinstance(value, str) or str(value) != value:
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        if value == '' and not self.allow_empty:
+            raise FieldValidationError(FieldError(self, 'empty'))
 
 
 class Integer(Field):
@@ -92,7 +113,28 @@ class Integer(Field):
 
     def validate(self, value):
         if not isinstance(value, int) or (type(value) != int):
-            raise InvalidSchemaException(self.message.invalid)
+            raise FieldValidationError(FieldError(self, 'invalid'))
+
+
+class Float(Field):
+
+    messages = {'invalid': 'Field is not a valid Float'}
+
+    def new(self, *args, **kwargs):
+        self.strict = kwargs.get('strict', True)  # allow integers to be passed and converted to a float
+
+    def serialize(self, value):
+        if isinstance(value, float) and type(value) == float:
+            return value
+        elif not self.strict and isinstance(value, int):
+           return float(value)
+        raise SerializationException
+
+    def validate(self, value):
+        if not self.strict and isinstance(value, int):
+           value = float(value)
+        if not isinstance(value, float) or (type(value) != float):
+            raise FieldValidationError(FieldError(self, 'invalid'))
 
 
 class Boolean(Field):
@@ -106,7 +148,7 @@ class Boolean(Field):
 
     def validate(self, value):
         if not isinstance(value, bool) or (type(value) != bool):
-            raise InvalidSchemaException(self.message.invalid)
+            raise FieldValidationError(FieldError(self, 'invalid'))
 
 
 class Dict(Field):
@@ -118,12 +160,12 @@ class Dict(Field):
 
     def validate(self, value):
         if not isinstance(value, dict):
-            raise InvalidSchemaException(self.message.invalid)
+            raise FieldValidationError(FieldError(self, 'invalid'))
 
 
 class List(Field):
 
-    messages = {'invalid_item': 'Field item is invalid'}
+    messages = {'invalid_item': 'Invalid Value'}
 
     def new(self, *args, **kwargs):
         self.field = kwargs.get('of', String())
@@ -142,11 +184,39 @@ class List(Field):
     def validate(self, value):
         errors = {}
         if not isinstance(value, list):
-            raise InvalidSchemaException(self.message.invalid)
+            raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             try:
                 self.field.validate(v)
-            except SchemaException as e:
-                errors[k] = e
+            except FieldValidationError as field_exc:
+                errors[str(k)] = field_exc.error
         if errors:
-            raise InvalidSchemaException(self.message.invalid_item, errors=errors)
+            raise FieldValidationError(FieldError(self, 'invalid_item', errors=errors))
+
+
+class Schema(Field):
+
+    messages = {'invalid': 'Invalid Schema'}
+
+    def new(self, schema, *args, **kwargs):
+        self.registry = kwargs.get('registry', schema_registry)
+        self.raw_schema = schema
+        self.schema = schema
+        if not isinstance(self.schema, AbstractBaseSchema):
+            self.schema = self.registry.get(schema, default=None)
+
+    def _get_schema(self):
+        if not self.schema:
+           self.schema = self.registry.get(self.raw_schema)
+        return self.schema
+
+    def serialize(self, value):
+        schema = self._get_schema()()
+        return schema.serialize(value)
+
+    def validate(self, value):
+        schema = self._get_schema()()
+        try:
+            schema.validate(value)
+        except ValidationError as e:
+            raise FieldValidationError(FieldError(self, 'invalid', errors=schema.raw_errors))
