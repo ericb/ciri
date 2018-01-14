@@ -2,27 +2,26 @@
 
 A Python object serialization library.
 
-## Example
+## Simple Example
 
 ```python
-from element import elements
-from element.core import Element
+from ciri import fields, Schema
+from ciri.exception import ValidationError
 
-# Setup the Element object
-class Person(Element):
+class Person(Schema):
 
-    id = elements.Integer(required=True)
-    name = elements.String()
-    username = elements.String(required=True)
+    name = fields.String()
+    age = fields.Integer()
 
+class Parent(Person):
+    child = fields.Schema(Person)
 
-# Create an instance of the Element
-employee = Person(id=4, name='Jack', username='coolguyjack')
+# Create an instance of a child and a father
+child = Person(name='Sarah', age=17)
+father = Parent(name='Jack', age=52, child=child)
 
-# Serialize the Element
-employee.serialize()
+# Serialize the Parent
+serialized = father.serialize()
 
-# employee._data
-# {'id': 4, 'username': 'coolguyjack', 'name': 'Jack'}
+assert serialized == {'name': 'Jack', 'age': 52, 'child': {'name': 'Sarah', 'age': 17}}
 ```
-
