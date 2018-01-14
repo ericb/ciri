@@ -70,3 +70,32 @@ def test_schema_kwargs():
 
     schema = S(name='ciri', active=True, sub=Sub(hello='testing'))
     assert schema.serialize() == {'name': 'ciri', 'active': True, 'sub': {'hello': 'testing'}}
+
+
+def test_subclass_schema():
+    class Person(Schema):
+        name = fields.String()
+        age = fields.Integer()
+
+    class Parent(Person):
+        child = fields.Schema(Person)
+
+    child = Person(name='Sarah', age=17)
+    father = Parent(name='Jack', age=52, child=child)
+
+    assert father.serialize() == {'name': 'Jack', 'age': 52, 'child': {'name': 'Sarah', 'age': 17}}
+
+
+def test_subclass_override_schema():
+    class Person(Schema):
+        name = fields.String(allow_empty=True)
+        age = fields.Integer()
+
+    class Parent(Person):
+        name = fields.String(allow_empty=False)
+        child = fields.Schema(Person)
+
+    child = Person(name='', age=17)
+    father = Parent(name='Jack', age=52, child=child)
+
+    assert father.serialize() == {'name': 'Jack', 'age': 52, 'child': {'name': '', 'age': 17}}

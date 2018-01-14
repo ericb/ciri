@@ -11,8 +11,13 @@ class AbstractBaseSchema(ABCMeta):
         klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         klass._elements = {}
         klass._fields = {}
+        for base in bases:
+            if getattr(base, '_fields', None):
+                for bk, bv in base._fields.items():
+                   klass._fields[bk] = bv
+                if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
+                    klass._elements[k] = True
         for k, v in attrs.items():
-            #print('hrm:', k, type(v), isinstance(v, AbstractField))
             if isinstance(v, AbstractField):
                 klass._fields[k] = v
                 delattr(klass, k)
