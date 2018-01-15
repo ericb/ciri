@@ -35,6 +35,8 @@ class Schema(object):
         self._raw_errors = None
         self._error_handler = kwargs.get('error_handler', ErrorHandler)()
         self._registry = kwargs.get('schema_registry', schema_registry)
+        self._validation_opts = {}
+        self._serialization_opts = {}
 
     def __setattr__(self, k, v):
         if self._fields.get(k):
@@ -48,13 +50,19 @@ class Schema(object):
     def pre_process(self, data):
         pass
 
-    def validate(self, data, halt_on_error=False):
+    def validate(self, data=None, halt_on_error=False):
         self._raw_errors = {}
         self._error_handler.reset()
+        if data is None:
+            data = self
 
         elements = self._elements.copy()
         if hasattr(data, '__dict__'):
             data = vars(data)
+
+        self._validation_opts = {
+            'halt_on_error': halt_on_error
+        }
 
         for k, v in data.items():
             if self._fields.get(k):
@@ -81,6 +89,7 @@ class Schema(object):
                 pass
             else:
                 try:
+                    self._fields[key]._schema = self
                     self._fields[key].validate(klass_value)
                 except FieldValidationError as field_exc:
                     self._raw_errors[str_key] = field_exc.error
@@ -128,6 +137,7 @@ class Schema(object):
                 # if we have something to work with, try and serialize it
                 if not self.errors.get(key, None):
                     try:
+                        self._fields[key]._schema = self
                         value = self._fields[key].serialize(klass_value)
                         if klass_value != SchemaFieldMissing:
                             output[name] = value

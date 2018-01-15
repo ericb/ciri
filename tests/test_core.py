@@ -45,6 +45,17 @@ def test_allow_none_field():
     assert schema.serialize({'name': 2}) == {'age': None}
 
 
+def test_halt_on_error():
+    class S(Schema):
+        name = fields.String(required=True)
+        age = fields.Integer(required=True)
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.validate(halt_on_error=True)
+    assert len(schema.errors) == 1
+
+
 def test_multiple_invalid_fields():
     class S(Schema):
         name = fields.String(required=True)
@@ -99,3 +110,20 @@ def test_subclass_override_schema():
     father = Parent(name='Jack', age=52, child=child)
 
     assert father.serialize() == {'name': 'Jack', 'age': 52, 'child': {'name': '', 'age': 17}}
+
+
+def test_double_subclass_schema():
+    class Person(Schema):
+        name = fields.String()
+        age = fields.Integer()
+
+    class Parent(Person):
+        child = fields.Schema(Person)
+
+    class Father(Parent):
+        sex = fields.String(default='male')
+
+    child = Person(name='Sarah', age=17)
+    father = Father(name='Jack', age=52, child=child)
+
+    assert father.serialize() == {'sex': 'male', 'name': 'Jack', 'age': 52, 'child': {'name': 'Sarah', 'age': 17}}

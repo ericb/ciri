@@ -9,7 +9,6 @@ from ciri import fields, Schema
 from ciri.exception import ValidationError
 
 class Person(Schema):
-
     name = fields.String()
     age = fields.Integer()
 
@@ -21,7 +20,11 @@ child = Person(name='Sarah', age=17)
 father = Parent(name='Jack', age=52, child=child)
 
 # Serialize the Parent
-serialized = father.serialize()
+try:
+    serialized = father.serialize()
+except ValidationError:
+    # the validate method is called by default when serializing
+    errors = father.errors
 
 assert serialized == {'name': 'Jack', 'age': 52, 'child': {'name': 'Sarah', 'age': 17}}
 ```

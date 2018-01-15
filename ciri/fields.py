@@ -74,6 +74,7 @@ class Field(AbstractField):
         self.allow_none = kwargs.get('allow_none', False)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
+        self._schema = None
 
     def serialize(self, value):
         raise NotImplementedError
@@ -191,9 +192,12 @@ class List(Field):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             try:
+                self.field._schema = self._schema
                 self.field.validate(v)
             except FieldValidationError as field_exc:
                 errors[str(k)] = field_exc.error
+                if self.field._schema._validation_opts.get('halt_on_error'):
+                    break
         if errors:
             raise FieldValidationError(FieldError(self, 'invalid_item', errors=errors))
 
@@ -221,6 +225,7 @@ class Schema(Field):
     def validate(self, value):
         schema = self._get_schema()()
         try:
-            schema.validate(value)
+            schema._schema = self._schema
+            schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
