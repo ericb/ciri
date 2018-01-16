@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
-from ciri.core import Schema
+from ciri.core import Schema, SchemaOptions
 from ciri.registry import SchemaRegistry, schema_registry
 from ciri.exception import ValidationError
 
@@ -127,3 +127,23 @@ def test_double_subclass_schema():
     father = Father(name='Jack', age=52, child=child)
 
     assert father.serialize() == {'sex': 'male', 'name': 'Jack', 'age': 52, 'child': {'name': 'Sarah', 'age': 17}}
+
+
+def test_errors_reset():
+    class S(Schema):
+        name = fields.String(required=True)
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({})
+    schema.serialize({'name': 'pi'})
+    assert not schema.errors
+
+
+def test_schema_options_cls():
+    opts = SchemaOptions()
+    assert opts.allow_none == True
+
+
+def test_schema_options_cls_overrides():
+    opts = SchemaOptions(allow_none=False)
+    assert opts.allow_none == False

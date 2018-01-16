@@ -2,7 +2,7 @@ import datetime
 import re
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField, AbstractBaseSchema, SchemaFieldDefault, SchemaFieldMissing
+from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing
 from ciri.compat import add_metaclass
 from ciri.registry import schema_registry
 from ciri.exception import InvalidSchemaException, SchemaException, SerializationException, RegistryError, ValidationError, FieldValidationError
@@ -214,7 +214,13 @@ class Schema(Field):
         self.raw_schema = schema
         self.cached = None
         self.schema = schema
-        if not isinstance(self.schema, AbstractBaseSchema):
+        subclass = False
+        try:
+            if issubclass(self.schema, AbstractSchema):
+                subclass = True
+        except TypeError:
+            pass
+        if not subclass:
             self.schema = self.registry.get(schema, default=None)
             if self.schema:
                 self.cached = self.schema()

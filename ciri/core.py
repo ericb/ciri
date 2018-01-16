@@ -1,6 +1,6 @@
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField, AbstractBaseSchema, SchemaFieldDefault, SchemaFieldMissing
+from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing
 from ciri.compat import add_metaclass
 from ciri.exception import SchemaException, SerializationException, ValidationError, FieldValidationError
 from ciri.fields import FieldError
@@ -25,16 +25,61 @@ class ErrorHandler(object):
             self.errors[key]['errors'] = handler.errors
 
 
+class SchemaOptions(object):
+
+    def __init__(self, *args, **kwargs):
+        defaults = {
+            'allow_none': True,
+            'error_handler': ErrorHandler,
+            'schema_registry': schema_registry
+        }
+        options = dict((k, v) if k in defaults else ('_unknown', 1) for (k,v) in kwargs.items())
+        options.pop('_unknown', None)
+        defaults.update(options)
+        for k, v in defaults.items():
+            setattr(self, k, v)
+
+
+DEFAULT_SCHEMA_OPTIONS = SchemaOptions()
+
+
+class AbstractBaseSchema(ABCMeta):
+
+    def __new__(cls, name, bases, attrs):
+        klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
+        klass._elements = {}
+        klass._fields = {}
+        for base in bases:
+            if getattr(base, '_fields', None):
+                for bk, bv in base._fields.items():
+                   klass._fields[bk] = bv
+                if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
+                    klass._elements[k] = True
+        for k, v in attrs.items():
+            if isinstance(v, AbstractField):
+                klass._fields[k] = v
+                delattr(klass, k)
+                if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
+                    klass._elements[k] = True
+            else:
+                setattr(klass, k, v)
+        if not hasattr(klass, '_config'):
+            klass._config = DEFAULT_SCHEMA_OPTIONS
+        return klass
+
+
 @add_metaclass(AbstractBaseSchema)
-class Schema(object):
+class Schema(AbstractSchema):
 
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             if self._fields.get(k):
                 self._elements[k] = True
                 setattr(self, k, v)
-        self._error_handler = kwargs.get('error_handler', ErrorHandler)()
-        self._registry = kwargs.get('schema_registry', schema_registry)
+        if kwargs.get('schema_options') is not None:
+            self._config = kwargs['schema_options']
+        self._error_handler = kwargs.get('error_handler', self._config.error_handler)()
+        self._registry = kwargs.get('schema_registry', self._config.schema_registry)
         self._validation_opts = {}
         self._serialization_opts = {}
 
