@@ -31,17 +31,12 @@ class Schema(object):
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             if self._fields.get(k):
-                setattr(self, k, kwargs[k])
-        self._raw_errors = None
+                self._elements[k] = True
+                setattr(self, k, v)
         self._error_handler = kwargs.get('error_handler', ErrorHandler)()
         self._registry = kwargs.get('schema_registry', schema_registry)
         self._validation_opts = {}
         self._serialization_opts = {}
-
-    def __setattr__(self, k, v):
-        if self._fields.get(k):
-            self._elements[k] = True
-        super(Schema, self).__setattr__(k, v)
 
     @property
     def errors(self):

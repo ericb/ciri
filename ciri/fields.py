@@ -1,9 +1,12 @@
+import datetime
+import re
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractBaseSchema, SchemaFieldDefault, SchemaFieldMissing
 from ciri.compat import add_metaclass
 from ciri.registry import schema_registry
 from ciri.exception import InvalidSchemaException, SchemaException, SerializationException, RegistryError, ValidationError, FieldValidationError
+from ciri.util.dateparse import parse_date, parse_datetime
 
 
 class FieldError(object):
@@ -209,23 +212,96 @@ class Schema(Field):
     def new(self, schema, *args, **kwargs):
         self.registry = kwargs.get('registry', schema_registry)
         self.raw_schema = schema
+        self.cached = None
         self.schema = schema
         if not isinstance(self.schema, AbstractBaseSchema):
             self.schema = self.registry.get(schema, default=None)
+            if self.schema:
+                self.cached = self.schema()
+        else:
+            self.cached = self.schema()
 
     def _get_schema(self):
-        if not self.schema:
+        if not self.cached:
            self.schema = self.registry.get(self.raw_schema)
-        return self.schema
+           self.cached = self.schema()
+        return self.cached
 
     def serialize(self, value):
-        schema = self._get_schema()()
+        schema = self.cached or self._get_schema()
         return schema.serialize(value)
 
     def validate(self, value):
-        schema = self._get_schema()()
+        schema = self.cached or self._get_schema()
         try:
             schema._schema = self._schema
             schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
+
+
+class Date(Field):
+
+    messages = {'invalid': 'Invalid ISO-8601 Date'}
+
+    def serialize(self, value):
+        if isinstance(value, str):
+            try:
+                dt = parse_datetime(value)
+            except (ValueError, TypeError):
+                dt = None
+
+            if not dt:
+                try:
+                    dt = parse_date(value)
+                except (ValueError, TypeError):
+                    dt = None
+
+            if not dt:
+                return value
+            else:
+                value = dt
+
+        if isinstance(value, datetime.date):
+            value = datetime.datetime(value.year, value.month, value.day)
+        return value.isoformat('_').split('_')[0]
+
+    def validate(self, value):
+        if isinstance(value, datetime.date) or isinstance(value, datetime.datetime):
+            return
+
+        try:
+            dt = parse_datetime(value)
+        except (ValueError, TypeError):
+            dt = None
+
+        if not dt:
+            try:
+                dt = parse_date(value)
+            except (ValueError, TypeError):
+                raise FieldValidationError(FieldError(self, 'invalid'))
+
+        if dt:
+            return dt
+        raise FieldValidationError(FieldError(self, 'invalid'))
+
+
+class DateTime(Field):
+
+    messages = {'invalid': 'Invalid ISO-8601 DateTime'}
+
+    def serialize(self, value):
+        if isinstance(value, str):
+            return parse_datetime(value).isoformat()
+        return value.isoformat()
+
+    def validate(self, value):
+        if isinstance(value, datetime.date):
+            return
+        try:
+            dt = parse_datetime(value)
+            if dt:
+                return dt
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        except (ValueError, TypeError):
+            raise FieldValidationError(FieldError(self, 'invalid'))
