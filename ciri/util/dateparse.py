@@ -34,8 +34,6 @@ import datetime
 import re
 
 
-utc = datetime.timezone.utc
-
 class FixedOffset(datetime.tzinfo):
     """
     Fixed offset in minutes east from UTC. Taken from Python's docs.
@@ -58,6 +56,9 @@ class FixedOffset(datetime.tzinfo):
 
     def dst(self, dt):
         return timedelta(0)
+
+
+utc = FixedOffset(0)
 
 
 def get_fixed_timezone(offset):
