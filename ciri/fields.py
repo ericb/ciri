@@ -2,7 +2,7 @@ import datetime
 import re
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing
+from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
 from ciri.registry import schema_registry
 from ciri.exception import InvalidSchemaException, SchemaException, SerializationException, RegistryError, ValidationError, FieldValidationError
@@ -74,7 +74,7 @@ class Field(AbstractField):
         self.name = kwargs.get('name', None)
         self.required = kwargs.get('required', False)
         self.default = kwargs.get('default', SchemaFieldDefault)
-        self.allow_none = kwargs.get('allow_none', False)
+        self.allow_none = kwargs.get('allow_none', UseSchemaOption)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
         self._schema = None

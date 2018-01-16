@@ -139,11 +139,19 @@ def test_errors_reset():
     assert not schema.errors
 
 
-def test_schema_options_cls():
+def test_schema_opts_cls():
     opts = SchemaOptions()
+    assert opts.allow_none == False
+
+
+def test_schema_opts_cls_overrides():
+    opts = SchemaOptions(allow_none=True)
     assert opts.allow_none == True
 
 
-def test_schema_options_cls_overrides():
-    opts = SchemaOptions(allow_none=False)
-    assert opts.allow_none == False
+def test_schema_opts_allow_none_used():
+    opts = SchemaOptions(allow_none=True)
+    class S(Schema):
+        name = fields.String()
+    schema = S(schema_options=opts)
+    assert schema.serialize({}) == {'name': None}

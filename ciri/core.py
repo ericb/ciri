@@ -1,6 +1,6 @@
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing
+from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
 from ciri.exception import SchemaException, SerializationException, ValidationError, FieldValidationError
 from ciri.fields import FieldError
@@ -29,7 +29,7 @@ class SchemaOptions(object):
 
     def __init__(self, *args, **kwargs):
         defaults = {
-            'allow_none': True,
+            'allow_none': False,
             'error_handler': ErrorHandler,
             'schema_registry': schema_registry
         }
@@ -49,12 +49,14 @@ class AbstractBaseSchema(ABCMeta):
         klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         klass._elements = {}
         klass._fields = {}
+        if not hasattr(klass, '_config'):
+            klass._config = DEFAULT_SCHEMA_OPTIONS
         for base in bases:
             if getattr(base, '_fields', None):
                 for bk, bv in base._fields.items():
                    klass._fields[bk] = bv
                 if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
-                    klass._elements[k] = True
+                    klass._elements[bk] = True
         for k, v in attrs.items():
             if isinstance(v, AbstractField):
                 klass._fields[k] = v
@@ -63,8 +65,6 @@ class AbstractBaseSchema(ABCMeta):
                     klass._elements[k] = True
             else:
                 setattr(klass, k, v)
-        if not hasattr(klass, '_config'):
-            klass._config = DEFAULT_SCHEMA_OPTIONS
         return klass
 
 
@@ -126,7 +126,7 @@ class Schema(AbstractSchema):
                 self._raw_errors[str_key] = field_err
                 self._error_handler.add(str_key, field_err)
             elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
-                pass
+                continue
             else:
                 try:
                     self._fields[key]._schema = self
@@ -171,7 +171,9 @@ class Schema(AbstractSchema):
                 name = key
 
             # if it's allowed, and the field is missing, set the value to None
-            if self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
+            if self._config.allow_none and self._fields[key].allow_none == UseSchemaOption and (klass_value == SchemaFieldMissing):
+                output[name] = None
+            elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
                 output[name] = None
             else:
                 # if we have something to work with, try and serialize it
