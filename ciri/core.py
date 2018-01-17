@@ -65,6 +65,7 @@ class AbstractBaseSchema(ABCMeta):
                     klass._elements[k] = True
             else:
                 setattr(klass, k, v)
+        klass._e = [x for x in klass._elements]
         return klass
 
 
@@ -74,7 +75,6 @@ class Schema(AbstractSchema):
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
             if self._fields.get(k):
-                self._elements[k] = True
                 setattr(self, k, v)
         if kwargs.get('schema_options') is not None:
             self._config = kwargs['schema_options']
@@ -82,6 +82,8 @@ class Schema(AbstractSchema):
         self._registry = kwargs.get('schema_registry', self._config.schema_registry)
         self._validation_opts = {}
         self._serialization_opts = {}
+        for k in self._fields:
+            self._fields[k]._schema = self
 
     @property
     def errors(self):
@@ -90,13 +92,11 @@ class Schema(AbstractSchema):
     def pre_process(self, data):
         pass
 
-    def validate(self, data=None, halt_on_error=False):
+    def validate(self, data=None, halt_on_error=False, key_cache=None):
         self._raw_errors = {}
         self._error_handler.reset()
-        if data is None:
-            data = self
+        data = data or self
 
-        elements = self._elements.copy()
         if hasattr(data, '__dict__'):
             data = vars(data)
 
@@ -104,11 +104,14 @@ class Schema(AbstractSchema):
             'halt_on_error': halt_on_error
         }
 
-        for k, v in data.items():
-            if self._fields.get(k):
-                elements[k] = True
+        if not key_cache:
+            data_keys = []
+            for k in data:
+                if self._fields.get(k):
+                    data_keys.append(k)
+            key_cache = set(self._e + data_keys)
 
-        for key in elements.keys():
+        for key in key_cache:
             str_key = str(key)
 
             # field value
@@ -129,7 +132,6 @@ class Schema(AbstractSchema):
                 continue
             else:
                 try:
-                    self._fields[key]._schema = self
                     self._fields[key].validate(klass_value)
                 except FieldValidationError as field_exc:
                     self._raw_errors[str_key] = field_exc.error
@@ -143,21 +145,24 @@ class Schema(AbstractSchema):
 
     def serialize(self, data=None, skip_validation=False):
         output = {}
-        elements = self._elements.copy()
-        if data is None:
-            data = self
+        data = data or self
 
         if hasattr(data, '__dict__'):
             data = vars(data)
 
+        data_keys = []
         for k in data:
             if self._fields.get(k):
-                elements[k] = True
+                data_keys.append(k)
+
+        elements = set(self._e + data_keys)
 
         if not skip_validation:
-            self.validate(data)
+            self.validate(data, key_cache=elements)
+            if self.errors:
+                raise SerializationException
 
-        for key in elements.keys():
+        for key in elements:
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
 
@@ -177,12 +182,7 @@ class Schema(AbstractSchema):
                 output[name] = None
             else:
                 # if we have something to work with, try and serialize it
-                if not self.errors.get(key, None):
-                    try:
-                        self._fields[key]._schema = self
-                        value = self._fields[key].serialize(klass_value)
-                        if klass_value != SchemaFieldMissing:
-                            output[name] = value
-                    except SerializationException:
-                        pass
+                value = self._fields[key].serialize(klass_value)
+                if klass_value != SchemaFieldMissing:
+                    output[name] = value
         return output

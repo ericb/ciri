@@ -77,7 +77,7 @@ class Field(AbstractField):
         self.allow_none = kwargs.get('allow_none', UseSchemaOption)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
-        self._schema = None
+        #self._schema = None
 
     def serialize(self, value):
         raise NotImplementedError
@@ -180,14 +180,7 @@ class List(Field):
         self.items = kwargs.get('items', [])
 
     def serialize(self, value):
-        data = []
-        for k, v in enumerate(value):
-            try:
-                value = self.field.serialize(v)
-                data.append(value)
-            except SerializationException:
-                pass
-        return data
+        return [self.field.serialize(v) for v in value]
 
     def validate(self, value):
         errors = {}
@@ -195,7 +188,6 @@ class List(Field):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             try:
-                self.field._schema = self._schema
                 self.field.validate(v)
             except FieldValidationError as field_exc:
                 errors[str(k)] = field_exc.error
@@ -203,6 +195,12 @@ class List(Field):
                     break
         if errors:
             raise FieldValidationError(FieldError(self, 'invalid_item', errors=errors))
+
+    def __setattr__(self, k, v):
+        if k == '_schema':
+            if hasattr(self, 'field'):
+                self.field._schema = v
+        super(Field, self).__setattr__(k, v)
 
 
 class Schema(Field):
@@ -240,10 +238,18 @@ class Schema(Field):
     def validate(self, value):
         schema = self.cached or self._get_schema()
         try:
-            schema._schema = self._schema
             schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
+
+    def __setattr__(self, k, v):
+        if k == '_schema':
+            if hasattr(self, 'cached'):
+                self.cached._schema = v
+                for field in self.cached._fields:
+                    # NOTE: this could interfere with the _schema if it's purpose changes in the future
+                    self.cached._fields[field]._schema = v
+        super(Field, self).__setattr__(k, v)
 
 
 class Date(Field):
