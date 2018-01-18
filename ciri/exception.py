@@ -26,5 +26,5 @@ class FieldValidationError(ValidationError):
         self.error = field_error
 
 
-class SerializationException(Exception):
+class SerializationError(Exception):
     pass

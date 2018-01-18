@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 from ciri import fields
 from ciri.core import Schema, SchemaOptions
 from ciri.registry import SchemaRegistry, schema_registry
-from ciri.exception import ValidationError
+from ciri.exception import ValidationError, SerializationError
 
 import pytest
 
@@ -19,7 +19,8 @@ def test_empty_serialization():
 
 def test_empty_validation():
     schema = Schema()
-    assert schema.validate({}).errors == {}
+    schema.validate({})
+    assert schema.errors == {}
 
 
 def test_default_value():

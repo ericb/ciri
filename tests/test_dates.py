@@ -44,11 +44,7 @@ def test_iso_8601_datetime_string(value, expected):
     class D(Schema):
         date = DateTime()
     schema = D()
-    try:
-        assert schema.serialize({'date': value}) == {'date': expected}
-    except ValidationError as e:
-        print(schema.errors)
-        raise e
+    assert schema.serialize({'date': value}) == {'date': expected}
 
 
 def test_iso_8601_datetime():

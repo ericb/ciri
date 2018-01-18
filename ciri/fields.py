@@ -5,7 +5,7 @@ from abc import ABCMeta
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
 from ciri.registry import schema_registry
-from ciri.exception import InvalidSchemaException, SchemaException, SerializationException, RegistryError, ValidationError, FieldValidationError
+from ciri.exception import InvalidSchemaException, SchemaException, SerializationError, RegistryError, ValidationError, FieldValidationError
 from ciri.util.dateparse import parse_date, parse_datetime
 
 
@@ -96,9 +96,7 @@ class String(Field):
         self.trim = kwargs.get('trim', True)
 
     def serialize(self, value):
-        if isinstance(value, str):
-            return str(value)
-        raise SerializationException
+        return value
 
     def validate(self, value):
         if not isinstance(value, str) or str(value) != value:
@@ -107,6 +105,7 @@ class String(Field):
             value = value.strip() 
         if value == '' and not self.allow_empty:
             raise FieldValidationError(FieldError(self, 'empty'))
+        return value
 
 
 
@@ -115,13 +114,15 @@ class Integer(Field):
     messages = {'invalid': 'Field is not a valid Integer'}
 
     def serialize(self, value):
-        if isinstance(value, int) and type(value) == int:
-            return value
-        raise SerializationException
+        try:
+            return int(value)
+        except Exception:
+            raise SerializationError
 
     def validate(self, value):
         if not isinstance(value, int) or (type(value) != int):
             raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
 
 
 class Float(Field):
@@ -136,39 +137,38 @@ class Float(Field):
             return value
         elif not self.strict and isinstance(value, int):
            return float(value)
-        raise SerializationException
+        raise SerializationError
 
     def validate(self, value):
         if not self.strict and isinstance(value, int):
            value = float(value)
         if not isinstance(value, float) or (type(value) != float):
             raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
 
 
 class Boolean(Field):
 
     def serialize(self, value):
-        if isinstance(value, bool) and type(value) == bool:
-            if value:
-                return True
-            return False
-        raise SerializationException
+        if value:
+            return True
+        return False
 
     def validate(self, value):
         if not isinstance(value, bool) or (type(value) != bool):
             raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
 
 
 class Dict(Field):
 
     def serialize(self, value):
-        if isinstance(value, dict):
-            return value
-        raise SerializationException
+        return value
 
     def validate(self, value):
         if not isinstance(value, dict):
             raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
 
 
 class List(Field):
@@ -183,18 +183,20 @@ class List(Field):
         return [self.field.serialize(v) for v in value]
 
     def validate(self, value):
+        valid = []
         errors = {}
         if not isinstance(value, list):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             try:
-                self.field.validate(v)
+                valid = self.field.validate(v)
             except FieldValidationError as field_exc:
                 errors[str(k)] = field_exc.error
                 if self.field._schema._validation_opts.get('halt_on_error'):
                     break
         if errors:
             raise FieldValidationError(FieldError(self, 'invalid_item', errors=errors))
+        return valid
 
     def __setattr__(self, k, v):
         if k == '_schema':
@@ -212,23 +214,18 @@ class Schema(Field):
         self.raw_schema = schema
         self.cached = None
         self.schema = schema
-        subclass = False
-        try:
-            if issubclass(self.schema, AbstractSchema):
-                subclass = True
-        except TypeError:
-            pass
-        if not subclass:
-            self.schema = self.registry.get(schema, default=None)
-            if self.schema:
-                self.cached = self.schema()
-        else:
-            self.cached = self.schema()
 
     def _get_schema(self):
         if not self.cached:
-           self.schema = self.registry.get(self.raw_schema)
-           self.cached = self.schema()
+            try:
+                if issubclass(self.schema, AbstractSchema):
+                    self.cached = self.schema()
+            except TypeError:
+                self.schema = self.registry.get(self.schema, default=None)
+                if not self.schema:
+                    self.schema = self.registry.get(self.raw_schema)
+                self.cached = self.schema()
+            self.cached._schema = self._schema
         return self.cached
 
     def serialize(self, value):
@@ -238,13 +235,13 @@ class Schema(Field):
     def validate(self, value):
         schema = self.cached or self._get_schema()
         try:
-            schema.validate(value, **schema._schema._validation_opts)
+            return schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 
     def __setattr__(self, k, v):
         if k == '_schema':
-            if hasattr(self, 'cached'):
+            if getattr(self, 'cached'):
                 self.cached._schema = v
                 for field in self.cached._fields:
                     # NOTE: this could interfere with the _schema if it's purpose changes in the future
@@ -257,30 +254,15 @@ class Date(Field):
     messages = {'invalid': 'Invalid ISO-8601 Date'}
 
     def serialize(self, value):
-        if isinstance(value, str):
-            try:
-                dt = parse_datetime(value)
-            except (ValueError, TypeError):
-                dt = None
-
-            if not dt:
-                try:
-                    dt = parse_date(value)
-                except (ValueError, TypeError):
-                    dt = None
-
-            if not dt:
-                return value
-            else:
-                value = dt
-
-        if isinstance(value, datetime.date):
+        try:
             value = datetime.datetime(value.year, value.month, value.day)
-        return value.isoformat('_').split('_')[0]
+            return value.isoformat('_').split('_')[0]
+        except Exception:
+            raise SerializationError
 
     def validate(self, value):
         if isinstance(value, datetime.date) or isinstance(value, datetime.datetime):
-            return
+            return value
 
         try:
             dt = parse_datetime(value)
@@ -303,13 +285,14 @@ class DateTime(Field):
     messages = {'invalid': 'Invalid ISO-8601 DateTime'}
 
     def serialize(self, value):
-        if isinstance(value, str):
-            return parse_datetime(value).isoformat()
-        return value.isoformat()
+        try:
+            return value.isoformat()
+        except Exception:
+            raise SerializationError
 
     def validate(self, value):
         if isinstance(value, datetime.date):
-            return
+            return value
         try:
             dt = parse_datetime(value)
             if dt:

@@ -2,7 +2,7 @@ from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
-from ciri.exception import SchemaException, SerializationException, ValidationError, FieldValidationError
+from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError
 from ciri.fields import FieldError
 from ciri.registry import schema_registry
 
@@ -63,6 +63,10 @@ class AbstractBaseSchema(ABCMeta):
                 delattr(klass, k)
                 if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
                     klass._elements[k] = True
+            elif isinstance(v, AbstractSchema):
+                klass._fields[k] = v
+                klass._elements[k] = True
+                delattr(klass, k)
             else:
                 setattr(klass, k, v)
         klass._e = [x for x in klass._elements]
@@ -92,11 +96,79 @@ class Schema(AbstractSchema):
     def pre_process(self, data):
         pass
 
-    def validate(self, data=None, halt_on_error=False, key_cache=None):
-        self._raw_errors = {}
-        self._error_handler.reset()
-        data = data or self
+    def _iterate(self, op, fields, elements, data, validation_opts):
+        errors = {}
+        valid = {}
+        halt_on_error = validation_opts.get('halt_on_error')
+        allow_none = self._config.allow_none
 
+        for key in elements:
+            str_key = str(key)
+
+            # field value
+            klass_value = data.get(key, SchemaFieldMissing)
+            missing = (klass_value == SchemaFieldMissing)
+            invalid = False
+
+            field = fields[key]
+
+            if isinstance(field, Schema):
+                data_keys = []
+                for k in data:
+                    if klass_value.get(k):
+                        data_keys.append(k)
+                key_cache = set(field._e + data_keys)
+                suberrors, valid[key] = self._iterate(op, field._fields, key_cache, klass_value, validation_opts)
+                if suberrors:
+                    errors[key] = suberrors
+                continue
+
+            # if the field is missing, set the default value
+            if missing and (fields[key].default != SchemaFieldDefault):
+                klass_value = fields[key].default
+                missing = False
+
+            if op == 'validate_and_serialize' or op == 'validate':
+                self._raw_errors = {}
+                self._error_handler.reset()
+
+                # if the field is missing, but it's required, set an error.
+                # if a value of None is allowed and we do not have a field, skip validation
+                # otherwise, validate the value
+                if missing and fields[key].required:
+                    errors[str_key] = FieldError(fields[key], 'required')
+                    invalid = True
+                elif missing and field.allow_none:
+                    pass
+                else:
+                    try:
+                        valid[key] = field.validate(klass_value)
+                    except FieldValidationError as field_exc:
+                        errors[str_key] = field_exc.error
+                        invalid = True
+                if errors and halt_on_error:
+                    break
+
+            if not invalid and (op == 'validate_and_serialize' or op == 'serialize'):
+                # determine the field result name (serialized name)
+                name = field.name or key
+
+                # if it's allowed, and the field is missing, set the value to None
+                if missing and allow_none and field.allow_none == UseSchemaOption:
+                    valid[name] = None
+                elif missing and field.allow_none:
+                    valid[name] = None
+                elif klass_value is None and field.allow_none:
+                    valid[name] = None
+                else:
+                    valid[name] = field.serialize(valid.get(key, klass_value))
+        for e, err in errors.items():
+            self._raw_errors[e] = err 
+            self._error_handler.add(e, err)
+        return (errors, valid)
+
+    def validate(self, data=None, halt_on_error=False, key_cache=None):
+        data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
 
@@ -111,78 +183,30 @@ class Schema(AbstractSchema):
                     data_keys.append(k)
             key_cache = set(self._e + data_keys)
 
-        for key in key_cache:
-            str_key = str(key)
-
-            # field value
-            klass_value = data.get(key, SchemaFieldMissing)
-
-            # if the field is missing, set the default value
-            if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
-                klass_value = self._fields[key].default
-
-            # if the field is missing, but it's required, set an error.
-            # if a value of None is allowed and we do not have a field, skip validation
-            # otherwise, validate the value
-            if self._fields[key].required and (klass_value == SchemaFieldMissing):
-                field_err = FieldError(self._fields[key], 'required')
-                self._raw_errors[str_key] = field_err
-                self._error_handler.add(str_key, field_err)
-            elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
-                continue
-            else:
-                try:
-                    self._fields[key].validate(klass_value)
-                except FieldValidationError as field_exc:
-                    self._raw_errors[str_key] = field_exc.error
-                    self._error_handler.add(str_key, field_exc.error)
-            if self.errors and halt_on_error:
-                break
-
-        if self.errors:
+        errors, valid = self._iterate('validate', self._fields, key_cache, data, self._validation_opts)
+        if errors:
             raise ValidationError()
-        return self
+        return valid
 
     def serialize(self, data=None, skip_validation=False):
-        output = {}
         data = data or self
-
         if hasattr(data, '__dict__'):
             data = vars(data)
 
         data_keys = []
+        append = data_keys.append
+        fields = self._fields
         for k in data:
-            if self._fields.get(k):
-                data_keys.append(k)
+            if fields.get(k):
+                append(k)
 
         elements = set(self._e + data_keys)
 
-        if not skip_validation:
-            self.validate(data, key_cache=elements)
-            if self.errors:
-                raise SerializationException
+        op = 'validate_and_serialize' 
+        if skip_validation:
+            op = 'serialize'
+        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts)
+        if errors:
+            raise ValidationError()
 
-        for key in elements:
-            # field value
-            klass_value = data.get(key, SchemaFieldMissing)
-
-            # if the field is missing, set the default value
-            if (klass_value == SchemaFieldMissing) and (self._fields[key].default is not SchemaFieldDefault):
-                klass_value = self._fields[key].default
-
-            # determine the field result name (serialized name)
-            name = self._fields[key].name
-            if name is None:
-                name = key
-
-            # if it's allowed, and the field is missing, set the value to None
-            if self._config.allow_none and self._fields[key].allow_none == UseSchemaOption and (klass_value == SchemaFieldMissing):
-                output[name] = None
-            elif self._fields[key].allow_none and (klass_value == SchemaFieldMissing):
-                output[name] = None
-            else:
-                # if we have something to work with, try and serialize it
-                value = self._fields[key].serialize(klass_value)
-                if klass_value != SchemaFieldMissing:
-                    output[name] = value
         return output
