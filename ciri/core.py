@@ -1,10 +1,14 @@
+import logging
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
 from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError
-from ciri.fields import FieldError
+from ciri.fields import FieldError, Schema as SchemaField
 from ciri.registry import schema_registry
+
+
+logger = logging.getLogger('ciri')
 
 
 class ErrorHandler(object):
@@ -49,22 +53,47 @@ class AbstractBaseSchema(ABCMeta):
         klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         klass._elements = {}
         klass._fields = {}
+        klass._subfields = {}
+        klass._pending_schemas = {}
         if not hasattr(klass, '_config'):
             klass._config = DEFAULT_SCHEMA_OPTIONS
         for base in bases:
             if getattr(base, '_fields', None):
                 for bk, bv in base._fields.items():
-                   klass._fields[bk] = bv
-                if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
-                    klass._elements[bk] = True
+                    if isinstance(bv, SchemaField):
+                        try:
+                            klass._fields[bk] = bv._get_schema()
+                        except AttributeError:
+                            klass._pending_schemas[bk] = bv
+                            klass._fields[bk] = bv
+                        klass._subfields[bk] = bv
+                        klass._elements[bk] = True
+                    elif isinstance(bv, Schema):
+                        klass._fields[bk] = bv
+                        klass._subfields[bk] = SchemaField(bv)
+                        klass._elements[bk] = True
+                    else:
+                        klass._fields[bk] = bv
+                        if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
+                            klass._elements[bk] = True
         for k, v in attrs.items():
             if isinstance(v, AbstractField):
-                klass._fields[k] = v
-                delattr(klass, k)
-                if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
+                if isinstance(v, SchemaField):
+                    try:
+                        klass._fields[k] = v._get_schema()
+                    except AttributeError:
+                        klass._pending_schemas[k] = v
+                        klass._fields[k] = v
+                    klass._subfields[k] = v
                     klass._elements[k] = True
+                else:
+                    klass._fields[k] = v
+                    if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
+                        klass._elements[k] = True
+                delattr(klass, k)
             elif isinstance(v, AbstractSchema):
                 klass._fields[k] = v
+                klass._subfields[k] = v
                 klass._elements[k] = True
                 delattr(klass, k)
             else:
@@ -96,11 +125,14 @@ class Schema(AbstractSchema):
     def pre_process(self, data):
         pass
 
-    def _iterate(self, op, fields, elements, data, validation_opts):
+    def _iterate(self, op, fields, elements, data, validation_opts, parent=None):
         errors = {}
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
         allow_none = self._config.allow_none
+
+        if not isinstance(data, dict):
+            data = vars(data)
 
         for key in elements:
             str_key = str(key)
@@ -111,16 +143,21 @@ class Schema(AbstractSchema):
             invalid = False
 
             field = fields[key]
+            
+            # if we encounter a schema field, cache it
+            if key in parent._pending_schemas:
+                field = self._fields[key] = field._get_schema()
+                parent._pending_schemas.pop(key)
 
-            if isinstance(field, Schema):
+            if key in parent._subfields:
                 data_keys = []
                 for k in data:
-                    if klass_value.get(k):
+                    if field._fields.get(k):
                         data_keys.append(k)
                 key_cache = set(field._e + data_keys)
-                suberrors, valid[key] = self._iterate(op, field._fields, key_cache, klass_value, validation_opts)
+                suberrors, valid[key] = self._iterate(op, field._fields, key_cache, klass_value, validation_opts, parent=field)
                 if suberrors:
-                    errors[key] = suberrors
+                    errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
                 continue
 
             # if the field is missing, set the default value
@@ -183,7 +220,7 @@ class Schema(AbstractSchema):
                     data_keys.append(k)
             key_cache = set(self._e + data_keys)
 
-        errors, valid = self._iterate('validate', self._fields, key_cache, data, self._validation_opts)
+        errors, valid = self._iterate('validate', self._fields, key_cache, data, self._validation_opts, parent=self)
         if errors:
             raise ValidationError()
         return valid
@@ -205,7 +242,7 @@ class Schema(AbstractSchema):
         op = 'validate_and_serialize' 
         if skip_validation:
             op = 'serialize'
-        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts)
+        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
         if errors:
             raise ValidationError()
 

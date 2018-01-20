@@ -70,6 +70,8 @@ class AbstractBaseField(ABCMeta):
 @add_metaclass(AbstractBaseField)
 class Field(AbstractField):
 
+    __slots__ = ['name', 'required', 'default', 'allow_none', '_messages', 'message', '_schema']
+
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
         self.required = kwargs.get('required', False)
@@ -87,6 +89,8 @@ class Field(AbstractField):
 
 
 class String(Field):
+
+    __slots__ = ['allow_empty', 'trim']
 
     messages = {'invalid': 'Field is not a valid String',
                 'empty': 'Field cannot be empty'}
@@ -173,6 +177,8 @@ class Dict(Field):
 
 class List(Field):
 
+    __slots__ = ['field', 'items']
+
     messages = {'invalid_item': 'Invalid Value'}
 
     def new(self, *args, **kwargs):
@@ -206,6 +212,8 @@ class List(Field):
 
 
 class Schema(Field):
+
+    __slots__ = ['registry', 'raw_schema', 'cached', 'schema']
 
     messages = {'invalid': 'Invalid Schema'}
 
