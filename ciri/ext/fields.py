@@ -11,6 +11,9 @@ class UUID(Field):
     def serialize(self, value):
         return str(value)
 
+    def deserialize(self, value):
+        return value
+
     def validate(self, value):
         if isinstance(value, uuid.UUID):
             return value

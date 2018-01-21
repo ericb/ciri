@@ -210,6 +210,8 @@ class List(Field):
 
     def new(self, *args, **kwargs):
         self.field = kwargs.get('of', String())
+        if not isinstance(self.field, AbstractField):
+            raise ValueError("'of' field must be a subclass of AbstractField")
         self.items = kwargs.get('items', [])
 
     def serialize(self, value):
@@ -272,8 +274,6 @@ class Schema(Field):
 
     def deserialize(self, value):
         schema = self.cached or self._get_schema()
-        print('what is this madness')
-        print(value)
         return schema.__class__(**value)
 
     def validate(self, value):
