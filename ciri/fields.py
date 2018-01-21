@@ -139,17 +139,21 @@ class Float(Field):
         self.strict = kwargs.get('strict', True)  # allow integers to be passed and converted to a float
 
     def serialize(self, value):
-        if isinstance(value, float) and type(value) == float:
-            return value
-        elif not self.strict and isinstance(value, int):
-           return float(value)
-        raise SerializationError
+        try:
+            return float(value)
+        except TypeError: 
+            raise SerializationError
 
     def validate(self, value):
-        if not self.strict and isinstance(value, int):
-           value = float(value)
-        if not isinstance(value, float) or (type(value) != float):
+        try:
+           float(value) == value
+        except TypeError:
             raise FieldValidationError(FieldError(self, 'invalid'))
+        if self.strict:
+            try:
+                value.is_integer() 
+            except AttributeError:
+                raise FieldValidationError(FieldError(self, 'invalid'))
         return value
 
 
