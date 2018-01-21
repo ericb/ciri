@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.fields import List, String, Float, Schema as SubSchema
+from ciri.fields import List, String, Integer, Float, Schema as SubSchema
 from ciri.core import Schema
 from ciri.exception import ValidationError
 
@@ -44,3 +44,14 @@ def test_invalid_items(item_type, value):
     with pytest.raises(ValidationError):
         schema.serialize({'foo': [value]})
     assert schema._raw_errors['foo'].message == List().message.invalid_item
+
+
+@pytest.mark.parametrize("item_type, value, expected", [
+    [Integer(), 1.0, 1],
+    [SubSchema(FooSchema), {'hello': 'Jon'}, FooSchema(hello='Jon')],
+])
+def test_deserializations(item_type, value, expected):
+    class S(Schema):
+        foo = List(of=item_type)
+    schema = S()
+    assert schema.deserialize({'foo': [value]}) == S(foo=[expected])

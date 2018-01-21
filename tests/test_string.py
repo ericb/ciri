@@ -51,3 +51,14 @@ def test_invalid_values(value):
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
     assert schema._raw_errors['foo'].message == String().message.invalid
+
+
+@pytest.mark.parametrize("value, expected", [
+    ['hello', 'hello'],
+    [str('testing'), 'testing']
+])
+def test_deserialization(value, expected):
+    class S(Schema):
+        foo = String()
+    schema = S()
+    assert schema.deserialize({'foo': value}) == S(foo=expected)

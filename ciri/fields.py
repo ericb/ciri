@@ -84,6 +84,9 @@ class Field(AbstractField):
     def serialize(self, value):
         raise NotImplementedError
 
+    def deserialize(self, value):
+        raise NotImplementedError
+
     def validate(self, value):
         raise NotImplementedError
 
@@ -100,6 +103,9 @@ class String(Field):
         self.trim = kwargs.get('trim', True)
 
     def serialize(self, value):
+        return value
+
+    def deserialize(self, value):
         return value
 
     def validate(self, value):
@@ -120,13 +126,19 @@ class Integer(Field):
     def serialize(self, value):
         return value
 
+    def deserialize(self, value):
+        return int(value)
+
     def validate(self, value):
         try:
             if not float(value).is_integer():
                 raise FieldValidationError(FieldError(self, 'invalid'))
         except TypeError:
             raise FieldValidationError(FieldError(self, 'invalid'))
-        if int(value) != value or type(value) == bool:
+        try:
+            if int(value) != value or type(value) == bool:
+                raise FieldValidationError(FieldError(self, 'invalid'))
+        except ValueError:
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
 
@@ -143,6 +155,9 @@ class Float(Field):
             return float(value)
         except TypeError: 
             raise SerializationError
+
+    def deserialize(self, value):
+        return float(value)
 
     def validate(self, value):
         try:
@@ -164,6 +179,9 @@ class Boolean(Field):
             return True
         return False
 
+    def deserialize(self, value):
+        return bool(value)
+
     def validate(self, value):
         if not isinstance(value, bool) or (type(value) != bool):
             raise FieldValidationError(FieldError(self, 'invalid'))
@@ -174,6 +192,9 @@ class Dict(Field):
 
     def serialize(self, value):
         return value
+
+    def deserialize(self, value):
+        return dict(value)
 
     def validate(self, value):
         if not isinstance(value, dict):
@@ -194,6 +215,9 @@ class List(Field):
     def serialize(self, value):
         return [self.field.serialize(v) for v in value]
 
+    def deserialize(self, value):
+        return [self.field.deserialize(v) for v in value]
+
     def validate(self, value):
         valid = []
         errors = {}
@@ -201,7 +225,7 @@ class List(Field):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             try:
-                valid = self.field.validate(v)
+                valid.append(self.field.validate(v))
             except FieldValidationError as field_exc:
                 errors[str(k)] = field_exc.error
                 if self.field._schema._validation_opts.get('halt_on_error'):
@@ -246,6 +270,12 @@ class Schema(Field):
         schema = self.cached or self._get_schema()
         return schema.serialize(value)
 
+    def deserialize(self, value):
+        schema = self.cached or self._get_schema()
+        print('what is this madness')
+        print(value)
+        return schema.__class__(**value)
+
     def validate(self, value):
         schema = self.cached or self._get_schema()
         try:
@@ -274,9 +304,12 @@ class Date(Field):
         except Exception:
             raise SerializationError
 
+    def deserialize(self, value):
+        return value
+
     def validate(self, value):
         if isinstance(value, datetime.date) or isinstance(value, datetime.datetime):
-            return value
+            return datetime.date(value.year, value.month, value.day)
 
         try:
             dt = parse_datetime(value)
@@ -290,7 +323,7 @@ class Date(Field):
                 raise FieldValidationError(FieldError(self, 'invalid'))
 
         if dt:
-            return dt
+            return datetime.date(dt.year, dt.month, dt.day)
         raise FieldValidationError(FieldError(self, 'invalid'))
 
 
@@ -303,6 +336,9 @@ class DateTime(Field):
             return value.isoformat()
         except Exception:
             raise SerializationError
+
+    def deserialize(self, value):
+        return value
 
     def validate(self, value):
         if isinstance(value, datetime.date):

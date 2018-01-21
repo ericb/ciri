@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.fields import String, List, Schema as SubSchema
+from ciri.fields import Boolean, String, List, Schema as SubSchema
 from ciri.core import Schema
 from ciri.exception import ValidationError
 
@@ -74,3 +74,16 @@ def test_halt_on_sub_errors():
     with pytest.raises(ValidationError):
         schema.validate(halt_on_error=True)
     assert len(schema._raw_errors['node'].errors['tags'].errors) == 1
+
+
+"""
+def test_deserialize_schema():
+    class Node(Schema):
+        enabled = fields.Boolean()
+
+    class Root(Schema):
+        node = SubSchema(Node, required=True)
+
+    schema = Root()
+    assert schema.deserialize({'node': { 'enabled': 'false' })
+"""

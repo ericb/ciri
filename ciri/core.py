@@ -165,7 +165,7 @@ class Schema(AbstractSchema):
                 klass_value = fields[key].default
                 missing = False
 
-            if op == 'validate_and_serialize' or op == 'validate':
+            if op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
                 self._raw_errors = {}
                 self._error_handler.reset()
 
@@ -185,7 +185,7 @@ class Schema(AbstractSchema):
                         invalid = True
                 if errors and halt_on_error:
                     break
-
+            
             if not invalid and (op == 'validate_and_serialize' or op == 'serialize'):
                 # determine the field result name (serialized name)
                 name = field.name or key
@@ -199,6 +199,17 @@ class Schema(AbstractSchema):
                     valid[name] = None
                 else:
                     valid[name] = field.serialize(valid.get(key, klass_value))
+
+            if not invalid and (op == 'validate_and_deserialize' or op == 'deserialize'):
+                # if it's allowed, and the field is missing, set the value to None
+                if missing and allow_none and field.allow_none == UseSchemaOption:
+                    valid[key] = None
+                elif missing and field.allow_none:
+                    valid[key] = None
+                elif klass_value is None and field.allow_none:
+                    valid[key] = None
+                else:
+                    valid[key] = field.deserialize(valid.get(key, klass_value))
         for e, err in errors.items():
             self._raw_errors[e] = err 
             self._error_handler.add(e, err)
@@ -247,3 +258,34 @@ class Schema(AbstractSchema):
             raise ValidationError()
 
         return output
+
+    def deserialize(self, data=None, skip_validation=False):
+        data = data or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+
+        data_keys = []
+        append = data_keys.append
+        fields = self._fields
+        for k in data:
+            if fields.get(k):
+                append(k)
+
+        elements = set(self._e + data_keys)
+
+        op = 'validate_and_deserialize' 
+        if skip_validation:
+            op = 'deserialize'
+        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
+        if errors:
+            raise ValidationError()
+
+        return self.__class__(**output)
+
+
+    def __eq__(self, other):
+        if isinstance(other, AbstractSchema):
+            if self.serialize() == other.serialize():
+                return True
+            return False
+        return super(Schema, self).__eq__(other)

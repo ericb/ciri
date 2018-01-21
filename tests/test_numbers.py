@@ -61,3 +61,66 @@ def test_invalid_float_values(value):
     with pytest.raises(ValidationError):
         schema.serialize({'num': value})
     assert schema._raw_errors['num'].message == Float().message.invalid
+
+
+@pytest.mark.parametrize("value, expected", [
+    [1.0, 1.0],
+    [1.05, 1.05],
+    [1.00, 1.0],
+    [5.35, 5.35],
+])
+def test_float_deserialization(value, expected):
+    class N(Schema):
+        num = Float()
+    schema = N()
+    assert schema.deserialize({'num': value}) == N(num=expected)
+
+
+@pytest.mark.parametrize("value", [
+    '1.0',
+    '1.05',
+    1,
+    '5.35',
+    False,
+    {},
+    [],
+    Schema()
+])
+def test_float_invalid_deserialization(value):
+    class N(Schema):
+        num = Float()
+    schema = N()
+    with pytest.raises(ValidationError):
+        schema.deserialize({'num': value})
+    assert schema._raw_errors['num'].message == Float().message.invalid
+
+
+@pytest.mark.parametrize("value, expected", [
+    [1.0, 1],
+    [1, 1],
+    [1, 1],
+    [5.00, 5],
+])
+def test_integer_deserialization(value, expected):
+    class N(Schema):
+        num = Integer()
+    schema = N()
+    assert schema.deserialize({'num': value}) == N(num=expected)
+
+
+@pytest.mark.parametrize("value", [
+    '1',
+    '1.0',
+    1.5,
+    False,
+    {},
+    [],
+    Schema()
+])
+def test_integer_invalid_deserialization(value):
+    class N(Schema):
+        num = Integer()
+    schema = N()
+    with pytest.raises(ValidationError):
+        schema.deserialize({'num': value})
+    assert schema._raw_errors['num'].message == Integer().message.invalid

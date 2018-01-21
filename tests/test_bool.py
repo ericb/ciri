@@ -25,3 +25,14 @@ def test_invalid_values(value):
     with pytest.raises(ValidationError):
         schema.serialize({'foo': value})
     assert schema._raw_errors['foo'].message == Boolean().message.invalid
+
+
+@pytest.mark.parametrize("value, expected", [
+    [False, False],
+    [True, True]
+])
+def test_deserialization(value, expected):
+    class B(Schema):
+        foo = Boolean()
+    schema = B()
+    assert schema.deserialize({'foo': value}) == B(foo=expected)
