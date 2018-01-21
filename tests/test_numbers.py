@@ -26,7 +26,7 @@ def test_non_strict_float_serialization():
 
 
 @pytest.mark.parametrize("value", [
-    1.00,
+    1.10,
     '1',
     True,
     False,

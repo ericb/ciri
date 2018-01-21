@@ -118,13 +118,15 @@ class Integer(Field):
     messages = {'invalid': 'Field is not a valid Integer'}
 
     def serialize(self, value):
-        try:
-            return int(value)
-        except Exception:
-            raise SerializationError
+        return value
 
     def validate(self, value):
-        if not isinstance(value, int) or (type(value) != int):
+        try:
+            if not float(value).is_integer():
+                raise FieldValidationError(FieldError(self, 'invalid'))
+        except TypeError:
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        if int(value) != value or type(value) == bool:
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
 
