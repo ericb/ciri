@@ -288,4 +288,4 @@ class Schema(AbstractSchema):
             if self.serialize() == other.serialize():
                 return True
             return False
-        return super(Schema, self).__eq__(other)
+        return NotImplemented
