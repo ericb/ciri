@@ -45,7 +45,6 @@ def test_invalid_int_values(value):
 
 
 @pytest.mark.parametrize("value", [
-    1,
     '1',
     True,
     False,
@@ -79,7 +78,6 @@ def test_float_deserialization(value, expected):
 @pytest.mark.parametrize("value", [
     '1.0',
     '1.05',
-    1,
     '5.35',
     False,
     {},

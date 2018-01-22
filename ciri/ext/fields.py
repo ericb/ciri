@@ -2,6 +2,7 @@ import uuid
 
 from ciri.exception import FieldValidationError, SerializationError
 from ciri.fields import Field, FieldError
+from ciri.compat import str_
 
 
 class UUID(Field):
@@ -15,11 +16,10 @@ class UUID(Field):
         return value
 
     def validate(self, value):
+        try:
+            return uuid.UUID(value)
+        except (ValueError, AttributeError):
+            pass
         if isinstance(value, uuid.UUID):
             return value
-        elif isinstance(value, str):
-            try:
-                return uuid.UUID(value)
-            except Exception:
-                pass
         raise FieldValidationError(FieldError(self, 'invalid'))

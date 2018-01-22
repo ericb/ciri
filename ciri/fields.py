@@ -3,7 +3,7 @@ import re
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
-from ciri.compat import add_metaclass
+from ciri.compat import add_metaclass, str_
 from ciri.registry import schema_registry
 from ciri.exception import InvalidSchemaException, SchemaException, SerializationError, RegistryError, ValidationError, FieldValidationError
 from ciri.util.dateparse import parse_date, parse_datetime
@@ -109,6 +109,9 @@ class String(Field):
         return value
 
     def validate(self, value):
+        if str != str_:
+            if isinstance(value, str_) and str_(value) == value:
+                value = str(value)
         if not isinstance(value, str) or str(value) != value:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.trim:
@@ -148,7 +151,7 @@ class Float(Field):
     messages = {'invalid': 'Field is not a valid Float'}
 
     def new(self, *args, **kwargs):
-        self.strict = kwargs.get('strict', True)  # allow integers to be passed and converted to a float
+        self.strict = kwargs.get('strict', False)  # allow integers to be passed and converted to a float
 
     def serialize(self, value):
         try:
@@ -160,6 +163,10 @@ class Float(Field):
         return float(value)
 
     def validate(self, value):
+        if type(value) == float:
+            return value
+        if type(value) in (bool, str, str_):
+            raise FieldValidationError(FieldError(self, 'invalid'))
         try:
            float(value) == value
         except TypeError:
@@ -278,6 +285,8 @@ class Schema(Field):
 
     def validate(self, value):
         schema = self.cached or self._get_schema()
+        schema._raw_errors = {}
+        schema._error_handler.reset()
         try:
             return schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:

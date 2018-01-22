@@ -130,6 +130,9 @@ class Schema(AbstractSchema):
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
         allow_none = self._config.allow_none
+        if op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
+            parent._raw_errors = {}
+            parent._error_handler.reset()
 
         if not isinstance(data, dict):
             data = vars(data)
@@ -166,8 +169,6 @@ class Schema(AbstractSchema):
                 missing = False
 
             if op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
-                self._raw_errors = {}
-                self._error_handler.reset()
 
                 # if the field is missing, but it's required, set an error.
                 # if a value of None is allowed and we do not have a field, skip validation

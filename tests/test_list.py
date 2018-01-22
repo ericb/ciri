@@ -34,7 +34,7 @@ def test_invalid_values(value):
 @pytest.mark.parametrize("item_type,value", [
     [String(), 1],
     [String(allow_empty=False), ''],
-    [Float(), 1],
+    [Float(strict=True), 1],
     [SubSchema(FooSchema), {'hello': 1}],
 ])
 def test_invalid_items(item_type, value):
