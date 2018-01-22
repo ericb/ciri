@@ -208,6 +208,8 @@ class Schema(AbstractSchema):
                     valid[name] = None
                 else:
                     valid[name] = field.serialize(valid.get(key, klass_value))
+                    if name != key:
+                        del valid[key]
 
             if not invalid and (op == 'validate_and_deserialize' or op == 'deserialize'):
                 # if it's allowed, and the field is missing, set the value to None

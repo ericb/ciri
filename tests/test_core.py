@@ -217,3 +217,10 @@ def test_multiple_validators_with_valid_value():
         name = fields.String(validators=[validate_mark, is_integer])
     schema = S()
     assert schema.serialize({'name': 'mark'}) == {'name': 'mark'}
+
+
+def test_field_serialization_name():
+    class S(Schema):
+        name = fields.String(name='first_name')
+    schema = S()
+    assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
