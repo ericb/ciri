@@ -156,3 +156,64 @@ def test_schema_opts_allow_none_used():
         name = fields.String()
     schema = S(schema_options=opts)
     assert schema.serialize({}) == {'name': None}
+
+
+def test_simple_validator_with_invalid_value():
+    def validate_mark(schema, field, value):
+        if value == 'mark':
+            return True
+        return False
+
+    class S(Schema):
+        name = fields.String(validators=[validate_mark])
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'name': 'bob'})
+    assert schema._raw_errors['name'].message == fields.String().message.invalid
+
+def test_simple_validator_with_valid_value():
+    def validate_mark(schema, field, value):
+        if value == 'mark':
+            return True
+        return False
+
+    class S(Schema):
+        name = fields.String(validators=[validate_mark])
+    schema = S()
+    assert schema.serialize({'name': 'mark'}) == {'name': 'mark'}
+
+
+def test_multiple_validators_with_invalid_value():
+    def validate_mark(schema, field, value):
+        if value == 'mark':
+            return True
+        return False
+
+    def is_integer(schema, field, value):
+        if not isinstance(value, int):
+            return False
+        return True
+
+    class S(Schema):
+        name = fields.String(validators=[validate_mark, is_integer])
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'name': 'mark'})
+    assert schema._raw_errors['name'].message == fields.String().message.invalid
+
+
+def test_multiple_validators_with_valid_value():
+    def validate_mark(schema, field, value):
+        if value == 'mark':
+            return True
+        return False
+
+    def is_integer(schema, field, value):
+        if not isinstance(value, int):
+            return True
+        return False
+
+    class S(Schema):
+        name = fields.String(validators=[validate_mark, is_integer])
+    schema = S()
+    assert schema.serialize({'name': 'mark'}) == {'name': 'mark'}

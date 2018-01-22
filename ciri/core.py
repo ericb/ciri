@@ -184,6 +184,14 @@ class Schema(AbstractSchema):
                     except FieldValidationError as field_exc:
                         errors[str_key] = field_exc.error
                         invalid = True
+                    for validator in field.validators:
+                        try:
+                            is_valid = validator(parent, field, valid[key])
+                        except Exception:
+                            is_valid = False
+                        if not is_valid:
+                            errors[key] = FieldError(field, 'invalid')
+
                 if errors and halt_on_error:
                     break
             

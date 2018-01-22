@@ -70,7 +70,8 @@ class AbstractBaseField(ABCMeta):
 @add_metaclass(AbstractBaseField)
 class Field(AbstractField):
 
-    __slots__ = ['name', 'required', 'default', 'allow_none', '_messages', 'message', '_schema']
+    __slots__ = ['name', 'required', 'default', 'allow_none',
+                 '_messages', 'message', '_schema', 'validators']
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
@@ -79,6 +80,11 @@ class Field(AbstractField):
         self.allow_none = kwargs.get('allow_none', UseSchemaOption)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
+        validators = kwargs.get('validators', None)
+        if isinstance(validators, list):
+            self.validators = validators
+        else:
+            self.validators = []
         #self._schema = None
 
     def serialize(self, value):
