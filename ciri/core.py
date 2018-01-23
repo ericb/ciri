@@ -3,6 +3,7 @@ from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass
+from ciri.encoder import JSONEncoder
 from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError
 from ciri.fields import FieldError, Schema as SchemaField
 from ciri.registry import schema_registry
@@ -35,6 +36,7 @@ class SchemaOptions(object):
         defaults = {
             'allow_none': False,
             'error_handler': ErrorHandler,
+            'encoder': JSONEncoder(),
             'schema_registry': schema_registry
         }
         options = dict((k, v) if k in defaults else ('_unknown', 1) for (k,v) in kwargs.items())
@@ -55,6 +57,7 @@ class AbstractBaseSchema(ABCMeta):
         klass._fields = {}
         klass._subfields = {}
         klass._pending_schemas = {}
+        klass._encode_stream = []
         if not hasattr(klass, '_config'):
             klass._config = DEFAULT_SCHEMA_OPTIONS
         for base in bases:
@@ -113,6 +116,7 @@ class Schema(AbstractSchema):
             self._config = kwargs['schema_options']
         self._error_handler = kwargs.get('error_handler', self._config.error_handler)()
         self._registry = kwargs.get('schema_registry', self._config.schema_registry)
+        self._encoder = kwargs.get('schema_encoder', self._config.encoder)
         self._validation_opts = {}
         self._serialization_opts = {}
         for k in self._fields:
@@ -168,7 +172,7 @@ class Schema(AbstractSchema):
                 klass_value = fields[key].default
                 missing = False
 
-            if op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
+            if op == 'validate_and_encode' or op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
 
                 # if the field is missing, but it's required, set an error.
                 # if a value of None is allowed and we do not have a field, skip validation
@@ -194,8 +198,9 @@ class Schema(AbstractSchema):
 
                 if errors and halt_on_error:
                     break
+
             
-            if not invalid and (op == 'validate_and_serialize' or op == 'serialize'):
+            if not invalid and (op == 'validate_and_encode' or op == 'validate_and_serialize' or op == 'serialize'):
                 # determine the field result name (serialized name)
                 name = field.name or key
 
@@ -210,6 +215,9 @@ class Schema(AbstractSchema):
                     valid[name] = field.serialize(valid.get(key, klass_value))
                     if name != key:
                         del valid[key]
+
+                if op == 'validate_and_encode' or op == 'encode':
+                    continue
 
             if not invalid and (op == 'validate_and_deserialize' or op == 'deserialize'):
                 # if it's allowed, and the field is missing, set the value to None
@@ -292,6 +300,30 @@ class Schema(AbstractSchema):
             raise ValidationError()
 
         return self.__class__(**output)
+
+    def encode(self, data=None, skip_validation=False):
+        self._encode_stream = []
+        data = data or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+
+        data_keys = []
+        append = data_keys.append
+        fields = self._fields
+        for k in data:
+            if fields.get(k):
+                append(k)
+
+        elements = set(self._e + data_keys)
+
+        op = 'validate_and_encode' 
+        if skip_validation:
+            op = 'encode'
+        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
+        if errors:
+            raise ValidationError()
+
+        return self._encoder.encode(output, self)
 
 
     def __eq__(self, other):
