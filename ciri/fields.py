@@ -107,22 +107,27 @@ class String(Field):
     def new(self, *args, **kwargs):
         self.allow_empty = kwargs.get('allow_empty', True)
         self.trim = kwargs.get('trim', True)
+        self.encoding = kwargs.get('unicode_enc', 'utf-8')
 
     def serialize(self, value):
+        if str is not str_:
+            return str_(value, self.encoding)
         return value
 
     def deserialize(self, value):
+        if str is not str_:
+            return str_(value, self.encoding)
         return value
 
     def validate(self, value):
-        if str != str_:
+        if str is not str_:
             if isinstance(value, str_) and str_(value) == value:
                 value = str(value)
-        if not isinstance(value, str) or str(value) != value:
+        if type(value) is not str or str(value) != value:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.trim:
             value = value.strip() 
-        if value == '' and not self.allow_empty:
+        if not value and not self.allow_empty:
             raise FieldValidationError(FieldError(self, 'empty'))
         return value
 
@@ -139,13 +144,15 @@ class Integer(Field):
         return int(value)
 
     def validate(self, value):
+        if type(value) is int:
+            return value
         try:
             if not float(value).is_integer():
                 raise FieldValidationError(FieldError(self, 'invalid'))
         except TypeError:
             raise FieldValidationError(FieldError(self, 'invalid'))
         try:
-            if int(value) != value or type(value) == bool:
+            if int(value) != value or type(value) is bool:
                 raise FieldValidationError(FieldError(self, 'invalid'))
         except ValueError:
             raise FieldValidationError(FieldError(self, 'invalid'))
@@ -160,21 +167,18 @@ class Float(Field):
         self.strict = kwargs.get('strict', False)  # allow integers to be passed and converted to a float
 
     def serialize(self, value):
-        try:
-            return float(value)
-        except TypeError: 
-            raise SerializationError
+        return value
 
     def deserialize(self, value):
         return float(value)
 
     def validate(self, value):
-        if type(value) == float:
+        if type(value) is float:
             return value
         if type(value) in (bool, str, str_):
             raise FieldValidationError(FieldError(self, 'invalid'))
         try:
-           float(value) == value
+           float(value) is value
         except TypeError:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.strict:
@@ -196,7 +200,7 @@ class Boolean(Field):
         return bool(value)
 
     def validate(self, value):
-        if not isinstance(value, bool) or (type(value) != bool):
+        if type(value) is not bool:
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
 
@@ -323,11 +327,19 @@ class Date(Field):
         return value
 
     def validate(self, value):
+        if type(value) is datetime.date:
+            return value
+        
+        if type(value) is datetime.datetime:
+            return datetime.date(value.year, value.month, value.day)
+
         if isinstance(value, datetime.date) or isinstance(value, datetime.datetime):
             return datetime.date(value.year, value.month, value.day)
 
         try:
             dt = parse_datetime(value)
+            if dt:
+                return datetime.date(dt.year, dt.month, dt.day)
         except (ValueError, TypeError):
             dt = None
 
@@ -338,7 +350,7 @@ class Date(Field):
                 raise FieldValidationError(FieldError(self, 'invalid'))
 
         if dt:
-            return datetime.date(dt.year, dt.month, dt.day)
+            return dt 
         raise FieldValidationError(FieldError(self, 'invalid'))
 
 

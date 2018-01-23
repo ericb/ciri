@@ -129,12 +129,14 @@ class Schema(AbstractSchema):
     def pre_process(self, data):
         pass
 
-    def _iterate(self, op, fields, elements, data, validation_opts, parent=None):
+    def _iterate(self, fields, elements, data, validation_opts,
+                 parent=None, do_serialize=False, do_deserialize=False, do_validate=False):
         errors = {}
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
         allow_none = self._config.allow_none
-        if op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
+
+        if do_validate:
             parent._raw_errors = {}
             parent._error_handler.reset()
 
@@ -146,7 +148,7 @@ class Schema(AbstractSchema):
 
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
-            missing = (klass_value == SchemaFieldMissing)
+            missing = (klass_value is SchemaFieldMissing)
             invalid = False
 
             field = fields[key]
@@ -162,17 +164,20 @@ class Schema(AbstractSchema):
                     if field._fields.get(k):
                         data_keys.append(k)
                 key_cache = set(field._e + data_keys)
-                suberrors, valid[key] = self._iterate(op, field._fields, key_cache, klass_value, validation_opts, parent=field)
+                suberrors, valid[key] = self._iterate(field._fields, key_cache, klass_value, validation_opts, parent=field,
+                                                      do_serialize=do_serialize, do_validate=do_validate,
+                                                      do_deserialize=do_deserialize)
                 if suberrors:
                     errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
                 continue
 
             # if the field is missing, set the default value
-            if missing and (fields[key].default != SchemaFieldDefault):
+            if missing and (fields[key].default is not SchemaFieldDefault):
                 klass_value = fields[key].default
                 missing = False
 
-            if op == 'validate_and_encode' or op == 'validate_and_serialize' or op == 'validate_and_deserialize' or op == 'validate':
+
+            if do_validate:
 
                 # if the field is missing, but it's required, set an error.
                 # if a value of None is allowed and we do not have a field, skip validation
@@ -200,12 +205,12 @@ class Schema(AbstractSchema):
                     break
 
             
-            if not invalid and (op == 'validate_and_encode' or op == 'validate_and_serialize' or op == 'serialize'):
+            if not invalid and do_serialize:
                 # determine the field result name (serialized name)
                 name = field.name or key
 
                 # if it's allowed, and the field is missing, set the value to None
-                if missing and allow_none and field.allow_none == UseSchemaOption:
+                if missing and allow_none and field.allow_none is UseSchemaOption:
                     valid[name] = None
                 elif missing and field.allow_none:
                     valid[name] = None
@@ -216,12 +221,9 @@ class Schema(AbstractSchema):
                     if name != key:
                         del valid[key]
 
-                if op == 'validate_and_encode' or op == 'encode':
-                    continue
-
-            if not invalid and (op == 'validate_and_deserialize' or op == 'deserialize'):
+            if not invalid and do_deserialize:
                 # if it's allowed, and the field is missing, set the value to None
-                if missing and allow_none and field.allow_none == UseSchemaOption:
+                if missing and allow_none and field.allow_none is UseSchemaOption:
                     valid[key] = None
                 elif missing and field.allow_none:
                     valid[key] = None
@@ -250,7 +252,7 @@ class Schema(AbstractSchema):
                     data_keys.append(k)
             key_cache = set(self._e + data_keys)
 
-        errors, valid = self._iterate('validate', self._fields, key_cache, data, self._validation_opts, parent=self)
+        errors, valid = self._iterate(self._fields, key_cache, data, self._validation_opts, parent=self, do_validate=True)
         if errors:
             raise ValidationError()
         return valid
@@ -269,10 +271,8 @@ class Schema(AbstractSchema):
 
         elements = set(self._e + data_keys)
 
-        op = 'validate_and_serialize' 
-        if skip_validation:
-            op = 'serialize'
-        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
+        errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
+                                       do_serialize=True, do_validate=(not skip_validation))
         if errors:
             raise ValidationError()
 
@@ -292,10 +292,8 @@ class Schema(AbstractSchema):
 
         elements = set(self._e + data_keys)
 
-        op = 'validate_and_deserialize' 
-        if skip_validation:
-            op = 'deserialize'
-        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
+        errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
+                                       do_deserialize=True, do_validate=(not skip_validation))
         if errors:
             raise ValidationError()
 
@@ -316,10 +314,8 @@ class Schema(AbstractSchema):
 
         elements = set(self._e + data_keys)
 
-        op = 'validate_and_encode' 
-        if skip_validation:
-            op = 'encode'
-        errors, output = self._iterate(op, self._fields, elements, data, self._validation_opts, parent=self)
+        errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
+                                       do_serialize=True, do_validate=(not skip_validation))
         if errors:
             raise ValidationError()
 
