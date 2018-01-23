@@ -43,6 +43,13 @@ def test_allow_none_field():
     class S(Schema):
         age = fields.Integer(allow_none=True)
     schema = S()
+    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
+
+
+def test_missing_field_with_allow_none():
+    class S(Schema):
+        age = fields.Integer(allow_none=True)
+    schema = S()
     assert schema.serialize({'name': 2}) == {'age': None}
 
 

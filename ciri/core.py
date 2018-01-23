@@ -187,6 +187,10 @@ class Schema(AbstractSchema):
                     invalid = True
                 elif missing and field.allow_none:
                     pass
+                elif allow_none and field.allow_none is UseSchemaOption and klass_value is None:
+                    pass
+                elif field.allow_none and klass_value is None:
+                    pass
                 else:
                     try:
                         valid[key] = field.validate(klass_value)
