@@ -4,9 +4,10 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
+from ciri.fields import FieldError
 from ciri.core import Schema, SchemaOptions
 from ciri.registry import SchemaRegistry, schema_registry
-from ciri.exception import ValidationError, SerializationError
+from ciri.exception import ValidationError, SerializationError, FieldValidationError
 
 import pytest
 
@@ -28,6 +29,16 @@ def test_default_value():
         active = fields.Boolean(default=True)
     schema = S()
     assert schema.serialize({}) == {'active': True}
+
+
+def test_default_callable():
+    def make_name(schema, field):
+        return 'audrey'
+
+    class S(Schema):
+        name = fields.String(default=make_name)
+    schema = S()
+    assert schema.serialize({}) == {'name': 'audrey'}
 
 
 def test_required_field():
@@ -168,11 +179,11 @@ def test_schema_opts_allow_none_used():
 def test_simple_validator_with_invalid_value():
     def validate_mark(schema, field, value):
         if value == 'mark':
-            return True
-        return False
+            return value
+        raise FieldValidationError(FieldError(field, 'invalid'))
 
     class S(Schema):
-        name = fields.String(validators=[validate_mark])
+        name = fields.String(post_validate=[validate_mark])
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'name': 'bob'})
@@ -181,11 +192,11 @@ def test_simple_validator_with_invalid_value():
 def test_simple_validator_with_valid_value():
     def validate_mark(schema, field, value):
         if value == 'mark':
-            return True
-        return False
+            return value
+        raise FieldValidationError(FieldError(field, 'invalid'))
 
     class S(Schema):
-        name = fields.String(validators=[validate_mark])
+        name = fields.String(post_validate=[validate_mark])
     schema = S()
     assert schema.serialize({'name': 'mark'}) == {'name': 'mark'}
 
@@ -193,8 +204,8 @@ def test_simple_validator_with_valid_value():
 def test_multiple_validators_with_invalid_value():
     def validate_mark(schema, field, value):
         if value == 'mark':
-            return True
-        return False
+            return value
+        raise FieldValidationError(FieldError(field, 'invalid'))
 
     def is_integer(schema, field, value):
         if not isinstance(value, int):
@@ -202,10 +213,10 @@ def test_multiple_validators_with_invalid_value():
         return True
 
     class S(Schema):
-        name = fields.String(validators=[validate_mark, is_integer])
+        name = fields.String(post_validate=[validate_mark, is_integer])
     schema = S()
     with pytest.raises(ValidationError):
-        schema.serialize({'name': 'mark'})
+        schema.serialize({'name': 'marcus'})
     assert schema._raw_errors['name'].message == fields.String().message.invalid
 
 
@@ -231,3 +242,97 @@ def test_field_serialization_name():
         name = fields.String(name='first_name')
     schema = S()
     assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
+
+
+def test_simple_pre_validate():
+    def not_fiona(schema, field, value):
+        if value == 'fiona':
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
+
+    class S(Schema):
+        first_name = fields.String(pre_validate=[not_fiona])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'foo bar', 'last_name': 'jenkins'}
+
+
+def test_simple_post_validate():
+    def not_fiona(schema, field, value):
+        if value == 'fiona':
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
+
+    class S(Schema):
+        first_name = fields.String(post_validate=[not_fiona])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'foo bar', 'last_name': 'jenkins'}
+
+
+def test_simple_pre_validate_error():
+    def not_fiona(schema, field, value):
+        if value == 'fiona':
+            raise FieldValidationError(FieldError(field, 'invalid'))
+        return value
+
+    class S(Schema):
+        first_name = fields.String(pre_validate=[not_fiona])
+        last_name = fields.String()
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'first_name': 'fiona', 'last_name': 'jenkins'})
+    assert schema._raw_errors['first_name'].message == fields.String().message.invalid
+
+
+def test_simple_pre_serializer():
+    def capitilize(schema, field, value):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(pre_serialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
+
+
+def test_simple_post_serializer():
+    def capitilize(schema, field, value):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(post_serialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
+
+
+def test_simple_pre_deserializer():
+    def capitilize(schema, field, value):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(pre_deserialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    s = schema.deserialize({'first_name': 'foo bar', 'last_name': 'jenkins'})
+    assert s.first_name == 'Foo Bar'
+
+
+def test_simple_post_deserializer():
+    def capitilize(schema, field, value):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(post_deserialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    s = schema.deserialize({'first_name': 'foo bar', 'last_name': 'jenkins'})
+    assert s.first_name == 'Foo Bar'

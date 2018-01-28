@@ -49,6 +49,24 @@ class SchemaOptions(object):
 DEFAULT_SCHEMA_OPTIONS = SchemaOptions()
 
 
+class SchemaCallableObject(object):
+
+    def __init__(self, *args, **kwargs):
+        self.callables = ['pre_validate', 'pre_serialize', 'pre_deserialize',
+                          'post_validate', 'post_serialize', 'post_deserialize']
+        for c in self.callables:
+            setattr(self, c, kwargs.get(c, {}))
+
+    def find(self, schema):
+        for key, field in schema._fields.items():
+            if isinstance(field, Schema):
+                continue  # schemas will handle their own
+            for c in self.callables:
+                field_callable = getattr(field, c, None)
+                if field_callable:
+                    getattr(self, c)[key] = field_callable
+
+
 class AbstractBaseSchema(ABCMeta):
 
     def __new__(cls, name, bases, attrs):
@@ -58,6 +76,7 @@ class AbstractBaseSchema(ABCMeta):
         klass._subfields = {}
         klass._pending_schemas = {}
         klass._encode_stream = []
+        klass._callables = SchemaCallableObject()
         if not hasattr(klass, '_config'):
             klass._config = DEFAULT_SCHEMA_OPTIONS
         for base in bases:
@@ -102,6 +121,8 @@ class AbstractBaseSchema(ABCMeta):
             else:
                 setattr(klass, k, v)
         klass._e = [x for x in klass._elements]
+
+        klass._callables.find(klass)
         return klass
 
 
@@ -135,6 +156,12 @@ class Schema(AbstractSchema):
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
         allow_none = self._config.allow_none
+        pre_validate = parent._callables.pre_validate
+        pre_serialize = parent._callables.pre_serialize
+        pre_deserialize = parent._callables.pre_deserialize
+        post_validate = parent._callables.post_validate
+        post_serialize = parent._callables.post_serialize
+        post_deserialize = parent._callables.post_deserialize
 
         if do_validate:
             parent._raw_errors = {}
@@ -142,6 +169,7 @@ class Schema(AbstractSchema):
 
         if not isinstance(data, dict):
             data = vars(data)
+
 
         for key in elements:
             str_key = str(key)
@@ -173,43 +201,65 @@ class Schema(AbstractSchema):
 
             # if the field is missing, set the default value
             if missing and (fields[key].default is not SchemaFieldDefault):
-                klass_value = fields[key].default
+                if callable(fields[key].default):
+                    klass_value = fields[key].default(parent, field)
+                else:
+                    klass_value = fields[key].default
                 missing = False
-
 
             if do_validate:
 
-                # if the field is missing, but it's required, set an error.
-                # if a value of None is allowed and we do not have a field, skip validation
-                # otherwise, validate the value
-                if missing and fields[key].required:
-                    errors[str_key] = FieldError(fields[key], 'required')
-                    invalid = True
-                elif missing and field.allow_none:
-                    pass
-                elif allow_none and field.allow_none is UseSchemaOption and klass_value is None:
-                    pass
-                elif field.allow_none and klass_value is None:
-                    pass
-                else:
-                    try:
-                        valid[key] = field.validate(klass_value)
-                    except FieldValidationError as field_exc:
-                        errors[str_key] = field_exc.error
-                        invalid = True
-                    for validator in field.validators:
+                # run pre validation functions
+                if pre_validate:
+                    for func in pre_validate.get(key, []):
                         try:
-                            is_valid = validator(parent, field, valid[key])
-                        except Exception:
-                            is_valid = False
-                        if not is_valid:
-                            errors[key] = FieldError(field, 'invalid')
+                            valid[key] = func(parent, field, klass_value)
+                            missing = (valid[key] is SchemaFieldMissing)
+                        except FieldValidationError as field_exc:
+                            errors[str_key] = field_exc.error
+                            invalid = True
+                            break
+
+                if not errors:
+                    # if the field is missing, but it's required, set an error.
+                    # if a value of None is allowed and we do not have a field, skip validation
+                    # otherwise, validate the value
+                    if missing and fields[key].required:
+                        errors[str_key] = FieldError(fields[key], 'required')
+                        invalid = True
+                    elif missing and field.allow_none:
+                        pass
+                    elif allow_none and field.allow_none is UseSchemaOption and klass_value is None:
+                        pass
+                    elif field.allow_none and klass_value is None:
+                        pass
+                    else:
+                        try:
+                            valid[key] = field.validate(klass_value)
+                        except FieldValidationError as field_exc:
+                            errors[str_key] = field_exc.error
+                            invalid = True
+                        if post_validate:
+                            for validator in post_validate.get(key, []):
+                                try:
+                                    valid[key] = validator(parent, field, valid[key])
+                                except FieldValidationError as field_exc:
+                                    errors[str_key] = field_exc.error
+                                    invalid = True
+                                    break
 
                 if errors and halt_on_error:
                     break
 
             
             if not invalid and do_serialize:
+
+                # run pre serialization functions
+                if pre_serialize:
+                    for func in pre_serialize.get(key, []):
+                        valid[key] = func(parent, field, klass_value)
+                        missing = (valid[key] is SchemaFieldMissing)
+
                 # determine the field result name (serialized name)
                 name = field.name or key
 
@@ -222,10 +272,23 @@ class Schema(AbstractSchema):
                     valid[name] = None
                 else:
                     valid[name] = field.serialize(valid.get(key, klass_value))
+                    # run post serialization functions
+                    if post_serialize:
+                        for func in post_serialize.get(key, []):
+                            valid[name] = func(parent, field, klass_value)
+
+                    # remove old keys if the serializer renames the field
                     if name != key:
                         del valid[key]
 
             if not invalid and do_deserialize:
+
+                # run pre deserialization functions
+                if pre_deserialize:
+                    for func in pre_deserialize.get(key, []):
+                        valid[key] = func(parent, field, valid.get(key, klass_value))
+                        missing = (valid[key] is SchemaFieldMissing)
+
                 # if it's allowed, and the field is missing, set the value to None
                 if missing and allow_none and field.allow_none is UseSchemaOption:
                     valid[key] = None
@@ -235,6 +298,10 @@ class Schema(AbstractSchema):
                     valid[key] = None
                 else:
                     valid[key] = field.deserialize(valid.get(key, klass_value))
+                    # run post deserialization functions
+                    if post_deserialize:
+                        for func in post_deserialize.get(key, []):
+                            valid[key] = func(parent, field, klass_value)
         for e, err in errors.items():
             self._raw_errors[e] = err 
             self._error_handler.add(e, err)
@@ -265,6 +332,7 @@ class Schema(AbstractSchema):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
+
 
         data_keys = []
         append = data_keys.append

@@ -76,14 +76,17 @@ def test_halt_on_sub_errors():
     assert len(schema._raw_errors['node'].errors['tags'].errors) == 1
 
 
-"""
-def test_deserialize_schema():
+def test_subschema_pre_serializer():
+    def upper(schema, field, value):
+        return value.replace(' ', '_').upper()
+
     class Node(Schema):
-        enabled = fields.Boolean()
+        label = String(required=True)
+        id = String(pre_serialize=[upper])
 
     class Root(Schema):
         node = SubSchema(Node, required=True)
+        enabled = Boolean(default=False)
 
     schema = Root()
-    assert schema.deserialize({'node': { 'enabled': 'false' })
-"""
+    assert schema.serialize({'node': {'label': 'foo bar', 'id': 'foo bar'}}) == {'enabled': False, 'node': {'label': 'foo bar', 'id': 'FOO_BAR'}}

@@ -71,7 +71,9 @@ class AbstractBaseField(ABCMeta):
 class Field(AbstractField):
 
     __slots__ = ['name', 'required', 'default', 'allow_none',
-                 '_messages', 'message', '_schema', 'validators']
+                 '_messages', 'message', '_schema', 'validators',
+                 'pre_validate', 'pre_serialize', 'pre_deserialize',
+                 'post_validate', 'post_serialize', 'post_deserialize']
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
@@ -80,12 +82,19 @@ class Field(AbstractField):
         self.allow_none = kwargs.get('allow_none', UseSchemaOption)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
-        validators = kwargs.get('validators', None)
-        if isinstance(validators, list):
-            self.validators = validators
-        else:
-            self.validators = []
+
+        callables = ['pre_validate', 'pre_serialize', 'pre_deserialize',
+                     'post_validate', 'post_serialize', 'post_deserialize']
+        for c in callables:
+            self._set_callable(c, kwargs.get(c))
+
         #self._schema = None
+
+    def _set_callable(self, type_, value):
+        if isinstance(value, list):
+            setattr(self, type_, value)
+        else:
+            setattr(self, type_, [])
 
     def serialize(self, value):
         raise NotImplementedError
