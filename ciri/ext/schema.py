@@ -15,7 +15,7 @@ class AbstractPolySchema(AbstractBaseSchema):
         if '__poly_id__' in attrs:
             attrs.update(poly._fields)
             for a in getattr(poly, '__poly_attrs__', []):
-                attrs[a] = getattr(poly, a)
+                attrs[a] = getattr(poly, a).__get__(cls, klass)
             klass = AbstractBaseSchema.__new__(cls, name, (Schema,) + bases[1:], attrs) 
             poly.__poly_mapping__[attrs['__poly_id__']] = klass
         return klass
