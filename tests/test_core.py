@@ -336,3 +336,31 @@ def test_simple_post_deserializer():
     schema = S()
     s = schema.deserialize({'first_name': 'foo bar', 'last_name': 'jenkins'})
     assert s.first_name == 'Foo Bar'
+
+
+def test_method_pre_validate():
+    class S(Schema):
+        name = fields.String(pre_validate=['not_bella'])
+
+        def not_bella(self, schema, field, value):
+            if value == 'bella':
+                raise FieldValidationError(FieldError(field, 'invalid'))
+            return value
+
+    schema = S()
+    assert schema.serialize({'name': 'sybil'}) == {'name': 'sybil'}
+
+
+def test_failing_pre_validate():
+    class S(Schema):
+        name = fields.String(pre_validate=['not_bella'])
+
+        def not_bella(self, schema, field, value):
+            if value == 'bella':
+                raise FieldValidationError(FieldError(field, 'invalid'))
+            return value
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'name': 'bella'})
+    assert schema._raw_errors['name'].message == fields.String().message.invalid

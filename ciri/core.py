@@ -64,7 +64,16 @@ class SchemaCallableObject(object):
             for c in self.callables:
                 field_callable = getattr(field, c, None)
                 if field_callable:
-                    getattr(self, c)[key] = field_callable
+                    updated_callables = []
+                    for item in field_callable:
+                        if callable(item):
+                            updated_callables.append(item)
+                        else:
+                            method = getattr(schema, item, None)
+                            if callable(method):
+                                updated_callables.append(method.__get__(schema, None))
+                    getattr(self, c)[key] = updated_callables
+
 
 
 class AbstractBaseSchema(ABCMeta):
