@@ -172,7 +172,17 @@ def test_schema_opts_allow_none_used():
     opts = SchemaOptions(allow_none=True)
     class S(Schema):
         name = fields.String()
-    schema = S(schema_options=opts)
+    schema = S()
+    schema.config({'options': opts})
+    assert schema.serialize({}) == {'name': None}
+
+
+def test_schema_opts_set_on_definition():
+    class S(Schema):
+        __schema_options__ = SchemaOptions(allow_none=True)
+        name = fields.String()
+
+    schema = S()
     assert schema.serialize({}) == {'name': None}
 
 

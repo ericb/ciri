@@ -69,6 +69,7 @@ class AbstractBaseField(ABCMeta):
 
 @add_metaclass(AbstractBaseField)
 class Field(AbstractField):
+    """Base Field Class that all other Fields extend from"""
 
     __slots__ = ['name', 'required', 'default', 'allow_none',
                  '_messages', 'message', '_schema', 'validators',
@@ -97,12 +98,31 @@ class Field(AbstractField):
             setattr(self, type_, [])
 
     def serialize(self, value):
+        """
+        Serialization method 
+
+        :param value: value to be serialized as a basic python type
+        :raises: SerializationError, NotImplementedError
+        """
         raise NotImplementedError
 
     def deserialize(self, value):
+        """
+        Deserialization method 
+
+        :param value: value to be deserialized as a basic python type
+        :raises: SerializationError, NotImplementedError
+        """
         raise NotImplementedError
 
     def validate(self, value):
+        """
+        Validation method
+
+        :param value: value to be deserialized as a basic python type
+        :returns: validated value
+        :raises: SerializationError, NotImplementedError
+        """
         raise NotImplementedError
 
 
@@ -141,6 +161,8 @@ class String(Field):
         return value
 
 
+Str = String()
+
 
 class Integer(Field):
 
@@ -166,6 +188,9 @@ class Integer(Field):
         except ValueError:
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
+
+
+Int = Integer
 
 
 class Float(Field):
@@ -214,6 +239,9 @@ class Boolean(Field):
         return value
 
 
+Bool = Boolean
+
+
 class Dict(Field):
 
     def serialize(self, value):
@@ -235,9 +263,18 @@ class List(Field):
     messages = {'invalid_item': 'Invalid Value'}
 
     def new(self, *args, **kwargs):
-        self.field = kwargs.get('of', String())
-        if not isinstance(self.field, AbstractField):
-            raise ValueError("'of' field must be a subclass of AbstractField")
+        self.field = None
+        if len(args) > 0:
+            self.field = args[0]
+        kwarg_field = kwargs.get('of')
+        if not self.field and not kwarg_field:
+            self.field = String()
+        elif not self.field and kwarg_field:
+            self.field = kwarg_field
+        if isinstance(self.field, AbstractSchema):
+            pass
+        elif not isinstance(self.field, AbstractField):
+            raise ValueError("'of' field must be a subclass of AbstractField or AbstractSchema")
         self.items = kwargs.get('items', [])
 
     def serialize(self, value):

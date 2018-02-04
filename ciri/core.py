@@ -13,14 +13,25 @@ logger = logging.getLogger('ciri')
 
 
 class ErrorHandler(object):
+    """
+    Default `Schema` Error Handler.
+    """
 
-    def __init__(self, errors=None):
+    def __init__(self):
+        #: Holds formatted Errors
         self.errors = {}
 
     def reset(self):
+        """Clears the current error context"""
         self.errors = {}
 
     def add(self, key, field_error):
+        """Takes a `FieldError`
+
+        :param key: error key 
+        :type key: str
+
+        """
         key = str(key)
         self.errors[key] = {'msg': field_error.message}
         if field_error.errors:
@@ -88,6 +99,8 @@ class AbstractBaseSchema(ABCMeta):
         klass._callables = SchemaCallableObject()
         if not hasattr(klass, '_config'):
             klass._config = DEFAULT_SCHEMA_OPTIONS
+        if attrs.get('__schema_options__'):
+            klass._config = attrs['__schema_options__']
         for base in bases:
             if getattr(base, '_fields', None):
                 for bk, bv in base._fields.items():
@@ -142,15 +155,18 @@ class Schema(AbstractSchema):
         for k, v in kwargs.items():
             if self._fields.get(k):
                 setattr(self, k, v)
-        if kwargs.get('schema_options') is not None:
-            self._config = kwargs['schema_options']
-        self._error_handler = kwargs.get('error_handler', self._config.error_handler)()
-        self._registry = kwargs.get('schema_registry', self._config.schema_registry)
-        self._encoder = kwargs.get('schema_encoder', self._config.encoder)
         self._validation_opts = {}
         self._serialization_opts = {}
         for k in self._fields:
             self._fields[k]._schema = self
+        self.config({})
+
+    def config(self, cfg):
+        if cfg.get('options') is not None:
+            self._config = cfg['options']
+        self._error_handler = cfg.get('error_handler', self._config.error_handler)()
+        self._registry = cfg.get('registry', self._config.schema_registry)
+        self._encoder = cfg.get('encoder', self._config.encoder)
 
     @property
     def errors(self):
@@ -189,7 +205,7 @@ class Schema(AbstractSchema):
             invalid = False
 
             field = fields[key]
-            
+
             # if we encounter a schema field, cache it
             if key in parent._pending_schemas:
                 field = self._fields[key] = field._get_schema()
@@ -236,11 +252,11 @@ class Schema(AbstractSchema):
                     if missing and fields[key].required:
                         errors[str_key] = FieldError(fields[key], 'required')
                         invalid = True
-                    elif missing and field.allow_none:
+                    elif missing and field.allow_none is True:
                         pass
-                    elif allow_none and field.allow_none is UseSchemaOption and klass_value is None:
+                    elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
                         pass
-                    elif field.allow_none and klass_value is None:
+                    elif field.allow_none is True and klass_value is None:
                         pass
                     else:
                         try:
@@ -260,7 +276,7 @@ class Schema(AbstractSchema):
                 if errors and halt_on_error:
                     break
 
-            
+
             if not invalid and do_serialize:
 
                 # run pre serialization functions
@@ -312,7 +328,7 @@ class Schema(AbstractSchema):
                         for func in post_deserialize.get(key, []):
                             valid[key] = func(parent, field, klass_value)
         for e, err in errors.items():
-            self._raw_errors[e] = err 
+            self._raw_errors[e] = err
             self._error_handler.add(e, err)
         return (errors, valid)
 
