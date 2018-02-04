@@ -1,7 +1,13 @@
 import json
 
 
-class JSONEncoder(object):
+class SchemaEncoder(object):
+
+    def encode(self, *args, **kwargs):
+        raise NotImplementedError
+
+
+class JSONEncoder(SchemaEncoder):
     
     def __init__(self):
         self.encoder = json.JSONEncoder(check_circular=False)

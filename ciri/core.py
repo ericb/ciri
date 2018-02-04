@@ -1,7 +1,8 @@
 import logging
 from abc import ABCMeta
 
-from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
+from ciri.abstract import (AbstractField, AbstractSchema, SchemaFieldDefault,
+                           SchemaFieldMissing, UseSchemaOption)
 from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
 from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError
@@ -42,13 +43,30 @@ class ErrorHandler(object):
 
 
 class SchemaOptions(object):
+    """
+    Holds the schema behavior configuration
+
+
+    :param allow_none: Allow :class:`None` values
+    :param raise_errors: Whether or not to raise exceptions
+    :param error_handler: Schema error handling
+    :param encoder: Schema encoding handler
+    :param registry: Schema registry
+
+    :type allow_none: bool
+    :type raise_errors: bool
+    :type error_handler: :class:`~ciri.core.ErrorHandler`
+    :type encoder: :class:`~ciri.encoder.SchemaEncoder`
+    :type registry: :class:`~ciri.registry.SchemaRegistry`
+    """
 
     def __init__(self, *args, **kwargs):
         defaults = {
             'allow_none': False,
+            'raise_errors': True,
             'error_handler': ErrorHandler,
             'encoder': JSONEncoder(),
-            'schema_registry': schema_registry
+            'registry': schema_registry
         }
         options = dict((k, v) if k in defaults else ('_unknown', 1) for (k,v) in kwargs.items())
         options.pop('_unknown', None)
@@ -164,9 +182,9 @@ class Schema(AbstractSchema):
     def config(self, cfg):
         if cfg.get('options') is not None:
             self._config = cfg['options']
-        self._error_handler = cfg.get('error_handler', self._config.error_handler)()
-        self._registry = cfg.get('registry', self._config.schema_registry)
-        self._encoder = cfg.get('encoder', self._config.encoder)
+        self._error_handler = self._config.error_handler()
+        self._registry = self._config.registry
+        self._encoder = self._config.encoder
 
     @property
     def errors(self):
@@ -176,7 +194,8 @@ class Schema(AbstractSchema):
         pass
 
     def _iterate(self, fields, elements, data, validation_opts,
-                 parent=None, do_serialize=False, do_deserialize=False, do_validate=False):
+                 parent=None, do_serialize=False,
+                 do_deserialize=False, do_validate=False):
         errors = {}
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
@@ -192,9 +211,8 @@ class Schema(AbstractSchema):
             parent._raw_errors = {}
             parent._error_handler.reset()
 
-        if not isinstance(data, dict):
+        if hasattr(data, '__dict__'):
             data = vars(data)
-
 
         for key in elements:
             str_key = str(key)
@@ -217,8 +235,8 @@ class Schema(AbstractSchema):
                     if field._fields.get(k):
                         data_keys.append(k)
                 key_cache = set(field._e + data_keys)
-                suberrors, valid[key] = self._iterate(field._fields, key_cache, klass_value, validation_opts, parent=field,
-                                                      do_serialize=do_serialize, do_validate=do_validate,
+                suberrors, valid[key] = self._iterate(field._fields, key_cache, klass_value, validation_opts,
+                                                      parent=field, do_serialize=do_serialize, do_validate=do_validate,
                                                       do_deserialize=do_deserialize)
                 if suberrors:
                     errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
@@ -245,33 +263,35 @@ class Schema(AbstractSchema):
                             invalid = True
                             break
 
-                if not errors:
-                    # if the field is missing, but it's required, set an error.
-                    # if a value of None is allowed and we do not have a field, skip validation
-                    # otherwise, validate the value
-                    if missing and fields[key].required:
-                        errors[str_key] = FieldError(fields[key], 'required')
+                if errors and halt_on_error:
+                    break
+
+                # if the field is missing, but it's required, set an error.
+                # if a value of None is allowed and we do not have a field, skip validation
+                # otherwise, validate the value
+                if missing and fields[key].required:
+                    errors[str_key] = FieldError(fields[key], 'required')
+                    invalid = True
+                elif missing and field.allow_none is True:
+                    pass
+                elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
+                    pass
+                elif field.allow_none is True and klass_value is None:
+                    pass
+                else:
+                    try:
+                        valid[key] = field.validate(klass_value)
+                    except FieldValidationError as field_exc:
+                        errors[str_key] = field_exc.error
                         invalid = True
-                    elif missing and field.allow_none is True:
-                        pass
-                    elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
-                        pass
-                    elif field.allow_none is True and klass_value is None:
-                        pass
-                    else:
-                        try:
-                            valid[key] = field.validate(klass_value)
-                        except FieldValidationError as field_exc:
-                            errors[str_key] = field_exc.error
-                            invalid = True
-                        if post_validate:
-                            for validator in post_validate.get(key, []):
-                                try:
-                                    valid[key] = validator(parent, field, valid[key])
-                                except FieldValidationError as field_exc:
-                                    errors[str_key] = field_exc.error
-                                    invalid = True
-                                    break
+                    if post_validate:
+                        for validator in post_validate.get(key, []):
+                            try:
+                                valid[key] = validator(parent, field, valid[key])
+                            except FieldValidationError as field_exc:
+                                errors[str_key] = field_exc.error
+                                invalid = True
+                                break
 
                 if errors and halt_on_error:
                     break
@@ -349,7 +369,7 @@ class Schema(AbstractSchema):
             key_cache = set(self._e + data_keys)
 
         errors, valid = self._iterate(self._fields, key_cache, data, self._validation_opts, parent=self, do_validate=True)
-        if errors:
+        if self._config.raise_errors and errors:
             raise ValidationError()
         return valid
 
@@ -357,7 +377,6 @@ class Schema(AbstractSchema):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
-
 
         data_keys = []
         append = data_keys.append
@@ -370,7 +389,7 @@ class Schema(AbstractSchema):
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
                                        do_serialize=True, do_validate=(not skip_validation))
-        if errors:
+        if self._config.raise_errors and errors:
             raise ValidationError()
 
         return output
@@ -391,12 +410,13 @@ class Schema(AbstractSchema):
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
                                        do_deserialize=True, do_validate=(not skip_validation))
-        if errors:
+
+        if self._config.raise_errors and errors:
             raise ValidationError()
 
         return self.__class__(**output)
 
-    def encode(self, data=None, skip_validation=False):
+    def encode(self, data=None, skip_validation=False, skip_serialization=False):
         self._encode_stream = []
         data = data or self
         if hasattr(data, '__dict__'):
@@ -412,8 +432,9 @@ class Schema(AbstractSchema):
         elements = set(self._e + data_keys)
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
-                                       do_serialize=True, do_validate=(not skip_validation))
-        if errors:
+                                       do_serialize=(not skip_serialization), do_validate=(not skip_validation))
+
+        if self._config.raise_errors and errors:
             raise ValidationError()
 
         return self._encoder.encode(output, self)

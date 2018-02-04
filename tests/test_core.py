@@ -64,6 +64,17 @@ def test_missing_field_with_allow_none():
     assert schema.serialize({'name': 2}) == {'age': None}
 
 
+def test_no_halt_on_error():
+    class S(Schema):
+        name = fields.String(required=True)
+        age = fields.Integer(required=True)
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.validate()
+    assert len(schema.errors) == 2
+
+
 def test_halt_on_error():
     class S(Schema):
         name = fields.String(required=True)
@@ -184,6 +195,16 @@ def test_schema_opts_set_on_definition():
 
     schema = S()
     assert schema.serialize({}) == {'name': None}
+
+
+def test_schema_raise_errors_false():
+    class S(Schema):
+        __schema_options__ = SchemaOptions(raise_errors=False)
+        name = fields.String(required=True)
+
+    schema = S()
+    schema.serialize({})
+    assert schema._raw_errors['name'].message == fields.String().message.required
 
 
 def test_simple_validator_with_invalid_value():

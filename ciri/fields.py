@@ -23,7 +23,8 @@ class FieldErrorMessages(object):
     def __init__(self, *args, **kwargs):
         self._messages = {
             'invalid': 'Invalid Field',
-            'required': 'Required Field'
+            'required': 'Required Field',
+            'invalid_mapping': 'Field is not a valid Mapping'
         }
         self._messages.update(kwargs)
 
@@ -260,10 +261,11 @@ class List(Field):
 
     __slots__ = ['field', 'items']
 
-    messages = {'invalid_item': 'Invalid Value'}
+    messages = {'invalid_item': 'Invalid Item(s)'}
 
     def new(self, *args, **kwargs):
         self.field = None
+        self.schema_list = False
         if len(args) > 0:
             self.field = args[0]
         kwarg_field = kwargs.get('of')
@@ -272,7 +274,7 @@ class List(Field):
         elif not self.field and kwarg_field:
             self.field = kwarg_field
         if isinstance(self.field, AbstractSchema):
-            pass
+            self.schema_list = True
         elif not isinstance(self.field, AbstractField):
             raise ValueError("'of' field must be a subclass of AbstractField or AbstractSchema")
         self.items = kwargs.get('items', [])
@@ -289,6 +291,12 @@ class List(Field):
         if not isinstance(value, list):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
+            if self.schema_list:
+                if type(v) is not dict or not isinstance(v, dict):
+                    errors[str(k)] = FieldError(self, 'invalid_mapping')
+                    if self.field._schema._validation_opts.get('halt_on_error'):
+                        break
+                    continue
             try:
                 valid.append(self.field.validate(v))
             except FieldValidationError as field_exc:
@@ -310,7 +318,8 @@ class Schema(Field):
 
     __slots__ = ['registry', 'raw_schema', 'cached', 'schema']
 
-    messages = {'invalid': 'Invalid Schema'}
+    messages = {'invalid': 'Invalid Schema',
+                'invalid_mapping': 'Field is not a valid Schema Mapping type'}
 
     def new(self, schema, *args, **kwargs):
         self.registry = kwargs.get('registry', schema_registry)
@@ -343,6 +352,8 @@ class Schema(Field):
         schema = self.cached or self._get_schema()
         schema._raw_errors = {}
         schema._error_handler.reset()
+        if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
+            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
         try:
             return schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
