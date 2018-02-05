@@ -348,8 +348,8 @@ class Schema(AbstractSchema):
                         for func in post_deserialize.get(key, []):
                             valid[key] = func(parent, field, klass_value)
         for e, err in errors.items():
-            self._raw_errors[e] = err
-            self._error_handler.add(e, err)
+            parent._raw_errors[e] = err
+            parent._error_handler.add(e, err)
         return (errors, valid)
 
     def validate(self, data=None, halt_on_error=False, key_cache=None):

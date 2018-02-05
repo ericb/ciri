@@ -162,7 +162,7 @@ class String(Field):
         return value
 
 
-Str = String()
+Str = String
 
 
 class Integer(Field):
@@ -292,7 +292,7 @@ class List(Field):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
             if self.schema_list:
-                if type(v) is not dict or not isinstance(v, dict):
+                if not hasattr(v, '__dict__') and (type(v) is not dict or not isinstance(v, dict)):
                     errors[str(k)] = FieldError(self, 'invalid_mapping')
                     if self.field._schema._validation_opts.get('halt_on_error'):
                         break
