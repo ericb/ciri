@@ -278,7 +278,7 @@ class Schema(AbstractSchema):
                     pass
                 elif field.allow_none is True and klass_value is None:
                     pass
-                else:
+                elif not missing:
                     try:
                         valid[key] = field.validate(klass_value)
                     except FieldValidationError as field_exc:
