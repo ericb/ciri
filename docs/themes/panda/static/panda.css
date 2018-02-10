@@ -1,0 +1,260 @@
+/* @import url("basic.css"); */
+/* @import url('https://fonts.googleapis.com/css?family=Roboto');*/
+@import url('https://fonts.googleapis.com/css?family=Roboto:100,100i,300,300i,400,400i,500,500i,700,700i');
+@import url('https://fonts.googleapis.com/css?family=Inconsolata|Roboto+Slab');
+
+body {
+  background-color: #6b6c74;
+  font-family: 'Roboto', sans-serif;
+  font-weight: 400;
+  color: #555;
+  padding: 0px;
+  margin: 0px;
+  display: flex;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: #47565e;
+  font-weight: 400;
+  padding-bottom: 16px;
+  border-bottom: 1px dotted #ccc;
+  font-family: 'Roboto Slab', sans-serif;
+}
+
+div.body h3 {
+  padding-top: 20px;
+}
+
+body p {
+  line-height: 1.4em;
+}
+
+.spacer {
+  padding-top: 30px;
+}
+
+
+table {
+  border: none;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+table.colwidths-auto {
+  width: 100%;
+}
+
+table th,
+table td {
+  border: none;
+}
+
+table thead tr {
+  border-bottom: 1px solid #ccc;
+}
+
+table thead th {
+  padding: 3px;
+  text-align: left;
+}
+
+table tbody tr.row-even {
+  background-color: #f5f5f5;
+}
+
+table tbody tr.row-odd {
+ 
+}
+
+table tbody td {
+  padding: 8px 6px;
+}
+
+
+.document {
+  display: flex;
+  flex-direction: row;
+  background-color: #efefef;
+  background-color: #323434;
+  background-color: inherit;
+  padding: 0px;
+}
+
+div.sphinxsidebar {
+  order: -1;
+  flex: 0 0 15em;
+  float: none;
+  padding: 32px;
+  /* background-color: #283747; */
+  background-color: #38454f;
+  color: #f1f1f1;
+  font-size: 0.9em;
+}
+
+div.sphinxsidebar .ciri {
+  font-size: 5em;
+  padding: 30px;
+  padding-top: 60px;
+  margin: -32px;
+  margin-bottom: 0px;
+  background-color: #1585ba;
+  font-family: 'Roboto Slab', sans-serif;
+}
+
+div.sphinxsidebar ul {
+  list-style: none;
+  margin-left: 0px;
+  padding-left: 0px;
+}
+
+div.sphinxsidebar ul li {
+  padding: 3px;
+}
+
+div.sphinxsidebar a {
+  color: #abbcc6;
+  text-decoration: none;
+  border-bottom: none;
+  margin-left: 16px;
+}
+
+div.sphinxsidebar h1,
+div.sphinxsidebar h2,
+div.sphinxsidebar h3,
+div.sphinxsidebar h4,
+div.sphinxsidebar h5,
+div.sphinxsidebar h6 {
+  border-bottom: none; 
+  /* color: #ff4ac4;  PINK */
+  color: #f1f1f1;
+  margin-left: -8px;
+  margin-right: -32px;
+  border-radius: 3px;
+  padding: 8px 10px;
+  padding-left: 12px;
+}
+
+div.sphinxsidebar h1 a,
+div.sphinxsidebar h2 a,
+div.sphinxsidebar h3 a,
+div.sphinxsidebar h4 a,
+div.sphinxsidebar h5 a,
+div.sphinxsidebar h6 a {
+  /* color: #ff0095; neon pink */
+  color: #f1f1f1;
+  /* color: #b1ff61; */
+  border-bottom: none;
+  margin-left: 0px;
+}
+
+div.documentwrapper {
+  flex: 1 1 auto;
+  float: none;
+  background-color: #fff;
+  border-radius: 0px 3px 3px 0px;
+}
+
+div.footer {
+  background-color: #232728;
+  padding: 16px 128px;
+  padding-bottom: 75px;
+  padding-left: 96px;
+}
+
+div.bodynav {
+  display: flex;
+  background-color: #f6f6f6;
+  padding: 16px 128px;
+  padding-left: 96px;
+}
+
+div.bodywrapper {
+  padding: 32px 128px;
+  padding-left: 96px;
+}
+
+div.highlight-default {
+  /*max-width: 700px;*/
+  padding: 8px 16px;
+  border-radius: 2px;
+  padding-bottom: 0px;
+  /*
+  background-color: #f1f1f1;
+  box-shadow: 0 0 3px 1px #dadada;
+  */
+  background-color: #f7f7f7;
+}
+
+div.highlight-default pre {
+  overflow: auto;
+  overflow-y: hidden;
+  padding-bottom: 10px;
+}
+
+a.headerlink {
+  visibility: hidden;
+  text-decoration: none;
+  color: darkblue;
+}
+
+a.headerlink:hover {
+  visibility: visible;
+}
+
+a {
+  color: #006699;
+  text-decoration: none;
+  border-bottom: 1px dotted #d7d7d7;
+}
+
+a:hover {
+  border-bottom: 1px dotted #444;
+}
+
+ul.simple li {
+  padding-bottom: 6px;
+}
+
+@media (min-width: 1024px) {
+  body {
+    padding: 0px;
+    margin: 0px;
+  }
+
+  div.highlight-default {
+    width: auto;
+  }
+}
+
+.class {
+  color: #555;
+  font-size: 1em;
+  font-family: serif;
+}
+
+code {
+  color: #009999;
+  font-weight: bold;
+}
+
+.viewcode-link {
+  float: right;
+  color: #919191;
+}
+
+.admonition {
+  display: inline-block;
+}
+
+.note .first {
+  background-color: #adecff;
+  margin: 0px;
+  padding: 8px 16px;
+}
+
+.note .last {
+  padding: 16px 16px;
+  margin: 0px;
+  background-color: #e9f4ff;
+}
