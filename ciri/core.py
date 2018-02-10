@@ -191,13 +191,23 @@ class ABCSchema(ABCMeta):
         """Find the :class:`~ciri.fields.Field` attributes and store them in the
         schemas `_fields` attribute."""
         items = dict((k,v) for k,v in vars(self).items())
+        includes = getattr(self, '__schema_include__', None)
+        inc = {}
+        if includes:
+            for inc_item in includes:
+                if isinstance(inc_item, ABCSchema):
+                    inc.update(inc_item._fields)
+                else:
+                    inc.update(inc_item)
+        inc.update(items)
         ignore_fields = ['__poly_on__']
-        for k, v in items.items():
+        for k, v in inc.items():
             if k not in ignore_fields and (isinstance(v, AbstractField) or isinstance(v, AbstractSchema)):
                 if not v.name:
                     v.name = k
                 self._fields[k] = v
-                delattr(self, k)
+                if k in items:
+                    delattr(self, k)
 
     def process_fields(self):
         """Performs field processing. Handles:

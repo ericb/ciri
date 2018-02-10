@@ -395,3 +395,51 @@ def test_failing_pre_validate():
     with pytest.raises(ValidationError):
         schema.serialize({'name': 'bella'})
     assert schema._raw_errors['name'].message == fields.String().message.invalid
+
+
+def test_schema_include():
+    class A(Schema):
+        a = fields.String()
+
+    class B(Schema):
+        b = fields.String()
+
+    class C(Schema):
+        c = fields.String()
+
+    class ABC(Schema):
+        __schema_include__ = [A, B, C]
+
+    schema = ABC()
+    assert sorted(list(schema._fields.keys())) == ['a', 'b', 'c']
+
+
+def test_schema_include_as_mapping():
+    base_fields = {'a': fields.String(), 'b': fields.String()}
+
+    class ABC(Schema):
+        __schema_include__ = [base_fields]
+
+        c = fields.String()
+
+    schema = ABC()
+    assert sorted(list(schema._fields.keys())) == ['a', 'b', 'c']
+
+
+def test_schema_include_with_override():
+    class A(Schema):
+        a = fields.String()
+
+    class B(Schema):
+        b = fields.String()
+
+    class C(Schema):
+        c = fields.String()
+
+    class ABC(Schema):
+        __schema_include__ = [A, B, C]
+
+        b = fields.Integer()
+
+    schema = ABC()
+    assert isinstance(schema._fields['b'], fields.Integer)
