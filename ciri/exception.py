@@ -5,7 +5,13 @@ class SchemaException(Exception):
 
 
 class ValidationError(Exception):
-    pass
+
+    def __init__(self, schema, message=None):
+       self.schema = schema
+
+    @property
+    def errors(self):
+        return self.schema.errors
 
 
 class RegistryError(Exception):

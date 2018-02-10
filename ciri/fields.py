@@ -1,4 +1,5 @@
 import datetime
+import uuid
 import re
 from abc import ABCMeta
 
@@ -434,3 +435,23 @@ class DateTime(Field):
             raise FieldValidationError(FieldError(self, 'invalid'))
         except (ValueError, TypeError):
             raise FieldValidationError(FieldError(self, 'invalid'))
+
+
+class UUID(Field):
+
+    messages = {'invalid': 'Field is not a valid UUID'}
+
+    def serialize(self, value):
+        return str(value)
+
+    def deserialize(self, value):
+        return value
+
+    def validate(self, value):
+        try:
+            return uuid.UUID(value)
+        except (ValueError, AttributeError):
+            pass
+        if isinstance(value, uuid.UUID):
+            return value
+        raise FieldValidationError(FieldError(self, 'invalid'))

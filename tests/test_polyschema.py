@@ -6,7 +6,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
-from ciri.ext.schema import PolySchema as Schema
+from ciri.core import PolySchema as Schema
 from ciri.exception import ValidationError
 
 import pytest
@@ -18,9 +18,10 @@ import pytest
 ])
 def test_polymorphism(value, expected):
     class Poly(Schema):
-        __poly_on__ = 'type_'
 
         type_ = fields.String(required=True)
+
+        __poly_on__ = type_
 
     class PolyA(Poly):
         __poly_id__ = 'a'
@@ -42,9 +43,8 @@ def test_polymorphism(value, expected):
 ])
 def test_polymorphism_encode(value, expected):
     class Poly(Schema):
-        __poly_on__ = 'type_'
-
         type_ = fields.String(required=True)
+        __poly_on__ = type_
 
     class PolyA(Poly):
         __poly_id__ = 'a'
@@ -62,9 +62,8 @@ def test_polymorphism_encode(value, expected):
 
 def test_polymorphism_deserialization():
     class Poly(Schema):
-        __poly_on__ = 'type_'
-
         type_ = fields.String(required=True)
+        __poly_on__ = type_
 
     class PolyA(Poly):
         __poly_id__ = 'a'
@@ -84,10 +83,10 @@ def test_polymorphism_deserialization():
 
 def test_subclass_poly_attrs():
     class Poly(Schema):
-        __poly_on__ = 'type_'
         __poly_attrs__ = ['foo']
 
         type_ = fields.String(required=True)
+        __poly_on__ = type_
 
         def foo(self, data):
             return 'foo{}'.format(data)
@@ -95,7 +94,7 @@ def test_subclass_poly_attrs():
     class PolyA(Poly):
         __poly_id__ = 'a'
 
-        foo = fields.String(required=True)
+        bar = fields.String(required=True)
 
     schema = PolyA()
     assert schema.foo('bar') == 'foobar'

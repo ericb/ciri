@@ -4,7 +4,7 @@ import uuid
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.ext.fields import UUID
+from ciri.fields import UUID
 from ciri.core import Schema
 from ciri.exception import ValidationError
 

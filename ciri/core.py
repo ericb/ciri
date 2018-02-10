@@ -104,69 +104,135 @@ class SchemaCallableObject(object):
                     getattr(self, c)[key] = updated_callables
 
 
+class AbstractPolySchema(AbstractSchema):
+    pass
 
-class AbstractBaseSchema(ABCMeta):
+
+class ABCSchema(ABCMeta):
+    """
+    Schema Metaclass
+
+    Looks for :class:`ciri.fields.Field` attributes and handles the schema
+    magic methods.
+    """
 
     def __new__(cls, name, bases, attrs):
+        cls, name, bases, attrs = cls.prepare_class(cls, name, bases, attrs)
         klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
-        klass._elements = {}
         klass._fields = {}
+        klass._elements = {}
         klass._subfields = {}
         klass._pending_schemas = {}
-        klass._encode_stream = []
         klass._callables = SchemaCallableObject()
-        if not hasattr(klass, '_config'):
-            klass._config = DEFAULT_SCHEMA_OPTIONS
-        if attrs.get('__schema_options__'):
-            klass._config = attrs['__schema_options__']
-        for base in bases:
-            if getattr(base, '_fields', None):
-                for bk, bv in base._fields.items():
-                    if isinstance(bv, SchemaField):
-                        try:
-                            klass._fields[bk] = bv._get_schema()
-                        except AttributeError:
-                            klass._pending_schemas[bk] = bv
-                            klass._fields[bk] = bv
-                        klass._subfields[bk] = bv
-                        klass._elements[bk] = True
-                    elif isinstance(bv, Schema):
-                        klass._fields[bk] = bv
-                        klass._subfields[bk] = SchemaField(bv)
-                        klass._elements[bk] = True
-                    else:
-                        klass._fields[bk] = bv
-                        if bv.required or bv.allow_none or (bv.default is not SchemaFieldDefault):
-                            klass._elements[bk] = True
-        for k, v in attrs.items():
-            if isinstance(v, AbstractField):
-                if isinstance(v, SchemaField):
-                    try:
-                        klass._fields[k] = v._get_schema()
-                    except AttributeError:
-                        klass._pending_schemas[k] = v
-                        klass._fields[k] = v
-                    klass._subfields[k] = v
-                    klass._elements[k] = True
-                else:
-                    klass._fields[k] = v
-                    if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
-                        klass._elements[k] = True
-                delattr(klass, k)
-            elif isinstance(v, AbstractSchema):
-                klass._fields[k] = v
-                klass._subfields[k] = v
-                klass._elements[k] = True
-                delattr(klass, k)
-            else:
-                setattr(klass, k, v)
-        klass._e = [x for x in klass._elements]
-
+        klass._config = DEFAULT_SCHEMA_OPTIONS
+        klass.handle_bases(bases)
+        klass.handle_poly(cls, name, bases, attrs)
+        klass.handle_config()
+        klass.find_fields()
+        klass.process_fields()
         klass._callables.find(klass)
         return klass
 
+    @staticmethod
+    def prepare_class(cls, name, bases, attrs):
+        """ Prepares the class instance for different Schema types. Currently
+        this only handles the :class:`PolySchema` type and it's subclasses."""
+        clear_poly = False
+        if '__poly_id__' in attrs:
+            clear_poly = True
 
-@add_metaclass(AbstractBaseSchema)
+        if clear_poly:
+            updated_bases = []
+            for base in bases:
+                if issubclass(base, AbstractPolySchema):
+                    props = []
+                    for x in base.__poly_inherit__:
+                        if x:
+                            props.append(x)
+                    newattrs = dict((x, getattr(base, x, None)) for x in props)
+                    for k, v in newattrs.items():
+                        if callable(v):
+                            newattrs[k] = v.__get__(cls, None)
+                    newattrs.update(attrs)
+                    attrs = newattrs
+                    attrs['__poly_parent__'] = base
+                    attrs.update(base._fields)
+                    continue
+                updated_bases.append(base)
+            updated_bases.append(Schema)
+            bases = tuple(updated_bases)
+
+        return cls, name, bases, attrs
+
+    def handle_bases(self, bases):
+        """Handles the Schema inheritance, specifically bringing in the inherited
+        field attributes"""
+        for base in bases:
+            if hasattr(base, '_fields'):
+                self._fields.update(base._fields)
+
+    def handle_poly(self, cls, name, bases, attrs):
+        """Handles magic methods (e.g. `__poly_on__`) of :class:`~ciri.core.PolySchema`
+        definitions."""
+        for base in bases:
+            if issubclass(base, AbstractPolySchema):
+                if '__poly_on__' in attrs:
+                    base.__poly_mapping__ = {}
+                    base.__poly_inherit__ = [x if not x.startswith('__poly') else None for x in attrs]
+                if '__poly_id__' in attrs:
+                    base.__poly_parent__ = base
+
+    def handle_config(self):
+        """Handles the schema options magic method"""
+        if hasattr(self, '__schema_options__'):
+            self._config = getattr(self, '__schema_options__')
+
+    def find_fields(self):
+        """Find the :class:`~ciri.fields.Field` attributes and store them in the
+        schemas `_fields` attribute."""
+        items = dict((k,v) for k,v in vars(self).items())
+        ignore_fields = ['__poly_on__']
+        for k, v in items.items():
+            if k not in ignore_fields and (isinstance(v, AbstractField) or isinstance(v, AbstractSchema)):
+                if not v.name:
+                    v.name = k
+                self._fields[k] = v
+                delattr(self, k)
+
+    def process_fields(self):
+        """Performs field processing. Handles:
+
+          * Tracking required fields or fields that should always be checked
+          * Tracking nested fields (aka, sub schemas)
+          * Tracking deferred schema fields
+          * Converting :class:`ciri.fields.Schema` fields to Schemas
+        """
+        for k, v in self._fields.items():
+            if isinstance(v, AbstractField):
+                if isinstance(v, SchemaField):
+                    try:
+                        self._fields[k] = v._get_schema()
+                    except AttributeError:
+                        self._pending_schemas[k] = v
+                    self._subfields[k] = v
+                    self._elements[k] = True
+                else:
+                    if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
+                        self._elements[k] = True
+            elif isinstance(v, AbstractSchema):
+                self._subfields[k] = v
+                self._elements[k] = True
+        self._e = [x for x in self._elements]
+
+    def __init__(self, *args, **kwargs):
+        """Metaclass Init - Maps the current Schema to the :class:`ciri.core.PolySchema` parent
+        if the Schema has one"""
+        poly_id = getattr(self, '__poly_id__', None)
+        if poly_id:
+            self.__poly_parent__.__poly_mapping__[poly_id] = self
+
+
+@add_metaclass(ABCSchema)
 class Schema(AbstractSchema):
 
     def __init__(self, *args, **kwargs):
@@ -370,7 +436,7 @@ class Schema(AbstractSchema):
 
         errors, valid = self._iterate(self._fields, key_cache, data, self._validation_opts, parent=self, do_validate=True)
         if self._config.raise_errors and errors:
-            raise ValidationError()
+            raise ValidationError(self)
         return valid
 
     def serialize(self, data=None, skip_validation=False):
@@ -390,7 +456,7 @@ class Schema(AbstractSchema):
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
                                        do_serialize=True, do_validate=(not skip_validation))
         if self._config.raise_errors and errors:
-            raise ValidationError()
+            raise ValidationError(self)
 
         return output
 
@@ -412,7 +478,7 @@ class Schema(AbstractSchema):
                                        do_deserialize=True, do_validate=(not skip_validation))
 
         if self._config.raise_errors and errors:
-            raise ValidationError()
+            raise ValidationError(self)
 
         return self.__class__(**output)
 
@@ -435,7 +501,7 @@ class Schema(AbstractSchema):
                                        do_serialize=(not skip_serialization), do_validate=(not skip_validation))
 
         if self._config.raise_errors and errors:
-            raise ValidationError()
+            raise ValidationError(self)
 
         return self._encoder.encode(output, self)
 
@@ -446,3 +512,44 @@ class Schema(AbstractSchema):
                 return True
             return False
         return NotImplemented
+
+
+class PolySchema(AbstractPolySchema, Schema):
+
+    def __init__(self, *args, **kwargs):
+        self.__poly_args__ = args
+        self.__poly_kwargs__ = kwargs
+        super(PolySchema, self).__init__(*args, **kwargs)
+
+    def deserialize(self, data=None, *args, **kwargs):
+        ident_key = self.__poly_on__.name
+        data = data or self.__poly_kwargs__ or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+        id_ = data.get(ident_key)
+        if not id_:
+            raise SerializationError
+        schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
+        return schema.deserialize(data, *args, **kwargs)
+
+    def serialize(self, data=None, *args, **kwargs):
+        ident_key = self.__poly_on__.name
+        data = data or self.__poly_kwargs__ or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+        id_ = data.get(ident_key)
+        if not id_:
+            raise SerializationError
+        schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
+        return schema.serialize(data, *args, **kwargs)
+
+    def encode(self, data=None, *args, **kwargs):
+        ident_key = self.__poly_on__.name
+        data = data or self.__poly_kwargs__ or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+        id_ = data.get(ident_key)
+        if not id_:
+            raise SerializationError
+        schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
+        return schema.encode(data, *args, **kwargs)
