@@ -91,8 +91,6 @@ class Field(AbstractField):
         for c in callables:
             self._set_callable(c, kwargs.get(c))
 
-        #self._schema = None
-
     def _set_callable(self, type_, value):
         if isinstance(value, list):
             setattr(self, type_, value)

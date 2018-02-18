@@ -563,3 +563,10 @@ class PolySchema(AbstractPolySchema, Schema):
             raise SerializationError
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.encode(data, *args, **kwargs)
+
+    @classmethod
+    def polymorph(cls, *args, **kwargs):
+        ident_key = cls.__poly_on__.name
+        id_ = kwargs.get(ident_key)
+        schema = cls.__poly_mapping__.get(id_)(*args, **kwargs)
+        return schema

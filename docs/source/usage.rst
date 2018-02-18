@@ -235,10 +235,97 @@ Here is an example of nested errors:
 Polymorphic Schemas
 ###################
 
-Subclassing gives you the ability to inherit similar fields, but that's not always enough. Let's
+Polymorphic schemas let you define a set of derived schema variations. In other words, you can
+define a base schema that can be mapped to another schema using an identifier that resides on
+the schema itself.
+
+Let's examine a small but practical use case for using polymorphism; versioning. Take this basic
+user schema as an example:
+
+::
+
+    from ciri import PolySchema
 
 
+    class AppUser(PolySchema):
+    
+        username = fields.String(required=True)
+        email = fields.String(required=True)
+        version = fields.String(default='v1')
 
+        __poly_on__ = version  # define the field which will determine the subclass mapping
+
+
+The **__poly_on__** attribute defines which schema field will be used to map subclasses. Notice
+that we've also got the username and email fields. We can now use the *AppUser* schema to define
+further variations.
+
+::
+
+    class AppUserV1(AppUser):
+
+        __poly_id__ = 'v1'  # define the polymorphic identifier
+        
+        # add additional fields
+        first_name = fields.String(required=True)
+        last_name = fields.String()
+        twitter_url = fields.String(allow_none=True)
+
+
+    class AppUserV2(AppUserV1):
+
+        __poly_id__ = 'v2'  # define the polymorphic identifier
+        
+        # add another field    
+        roles = fields.List(fields.String())
+
+        # modify another field
+        last_name = fields.String(required=True)
+
+
+Above we've used the **__poly_id__** attribute to define a *v1* and *v2* schema mapping. Notice how you can continue to subclass the original
+:class:`~ciri.core.PolySchema`. Now let's see what makes these mappings so handy.
+
+::
+
+        user_data = {
+            'username': 'magic_is_cool',
+            'email': 'hpotter@hogwarts.example.com',
+            'first_name': 'Harry',
+            'last_name': 'Potter',
+            'roles': ['student', 'wizard']
+        }
+
+        v1_user = AppUser(version='v1', **user_data)
+        # <AppUser object at 0x7f4441245e48>
+
+        v2_user = AppUser(version='v2', **user_data)
+        # <AppUser object at 0x7fd127dfae48>
+
+        v1_user_again = AppUser.polymorph(version='v1', **user_data)
+        # <AppUserV1 object at 0x7f64597520b8>
+
+        v2_user_again = AppUser().deserialize(v2_user.serialize())
+        # <AppUserV2 object at 0x7fd127dfaf28>
+
+
+Notice that each of these interactions utilize the same base polymorphic schema class, but
+will return different schema instances depending on the usage. This is important to know
+when performing checks like :function:`isinstance`, but for most other intents and purposes,
+they can be considered functionally equivalent.
+
+Here's a bit of code that may make that more clear:
+
+::
+
+        print(isinstance(v1_user, AppUserV1))
+        # False
+
+        print(isinstance(v1_user_again, AppUserV1))
+        # True
+
+        print(v1_user.serialize() == v1_user_again.serialize())
+        # True
 
 .. rst-class:: spacer
 

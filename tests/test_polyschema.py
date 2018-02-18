@@ -98,3 +98,75 @@ def test_subclass_poly_attrs():
 
     schema = PolyA()
     assert schema.foo('bar') == 'foobar'
+
+
+@pytest.mark.parametrize("value, expected", [
+    [{'type_': 'a', 'foo': 'bar', 'bar': 'foo'}, 'Poly'],
+    [{'type_': 'b', 'foo': 'bar', 'bar': 'foo'}, 'Poly'],
+])
+def test_polymorph_base_type(value, expected):
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+        __poly_id__ = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+    assert type(Poly(**value)).__name__ == expected 
+
+
+@pytest.mark.parametrize("value, expected", [
+    [{'type_': 'a', 'foo': 'bar', 'bar': 'foo'}, 'PolyA'],
+    [{'type_': 'b', 'foo': 'bar', 'bar': 'foo'}, 'PolyB'],
+])
+def test_polymorph_method_type(value, expected):
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+        __poly_id__ = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+    assert type(Poly.polymorph(**value)).__name__ == expected 
+
+
+@pytest.mark.parametrize("value, expected", [
+    [{'type_': 'a', 'foo': 'bar', 'bar': 'foo'}, 'PolyA'],
+    [{'type_': 'b', 'foo': 'bar', 'bar': 'foo'}, 'PolyB'],
+])
+def test_polymorph_deserialize_type(value, expected):
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+        __poly_id__ = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+    assert type(Poly().deserialize(value)).__name__ == expected 
