@@ -448,7 +448,7 @@ class UUID(Field):
     def validate(self, value):
         try:
             return uuid.UUID(value)
-        except (ValueError, AttributeError):
+        except (ValueError, AttributeError, TypeError):
             pass
         if isinstance(value, uuid.UUID):
             return value

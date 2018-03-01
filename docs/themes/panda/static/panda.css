@@ -106,10 +106,12 @@ div.sphinxsidebar ul {
   list-style: none;
   margin-left: 0px;
   padding-left: 0px;
+  margin-top: 10px;
 }
 
 div.sphinxsidebar ul li {
   padding: 3px;
+  padding-left: 16px;
 }
 
 div.sphinxsidebar a {
@@ -253,8 +255,12 @@ code {
   padding: 8px 16px;
 }
 
-.note .last {
+.note p {
   padding: 16px 16px;
   margin: 0px;
   background-color: #e9f4ff;
+}
+
+.note p.last {
+  margin-bottom: 16px;
 }

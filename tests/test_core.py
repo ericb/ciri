@@ -190,7 +190,8 @@ def test_schema_opts_allow_none_used():
 
 def test_schema_opts_set_on_definition():
     class S(Schema):
-        __schema_options__ = SchemaOptions(allow_none=True)
+        class Meta:
+           options = SchemaOptions(allow_none=True)
         name = fields.String()
 
     schema = S()
@@ -443,3 +444,43 @@ def test_schema_include_with_override():
 
     schema = ABC()
     assert isinstance(schema._fields['b'], fields.Integer)
+
+
+def test_schema_compose():
+    class A(Schema):
+        a = fields.String()
+
+    class B(Schema):
+        b = fields.String()
+
+    class C(Schema):
+        c = fields.String()
+
+    class ABC(Schema):
+
+        class Meta:
+            compose = [A, B, C]
+
+        b = fields.Integer()
+
+    schema = ABC()
+    assert isinstance(schema._fields['c'], fields.String)
+
+
+def test_schema_field_remove():
+    class A(Schema):
+        a = fields.String()
+
+    class B(Schema):
+        b = fields.String()
+
+    class C(Schema):
+        c = fields.String()
+
+    class ABRemoveC(C, B, A):
+
+        b = fields.Integer()
+        c = None
+
+    schema = ABRemoveC(a='a', b=7, c='c')
+    assert schema.serialize() == {'a': 'a', 'b': 7}

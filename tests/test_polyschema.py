@@ -160,7 +160,9 @@ def test_polymorph_deserialize_type(value, expected):
         __poly_on__ = type_
 
     class PolyA(Poly):
-        __poly_id__ = 'a'
+
+        class Meta:
+            poly_id = 'a'
 
         foo = fields.String(required=True)
 

@@ -138,6 +138,22 @@ class ABCSchema(ABCMeta):
         """ Prepares the class instance for different Schema types. Currently
         this only handles the :class:`PolySchema` type and it's subclasses."""
         clear_poly = False
+        meta = False
+
+        # Meta : compose attributes
+        if 'Meta' in attrs and getattr(attrs['Meta'], 'compose', None):
+            compose = getattr(attrs['Meta'], 'compose')
+            base_includes = getattr(attrs, '__schema_include__', [])
+            attrs['__schema_include__'] = [s for s in compose] + base_includes
+
+        # Meta : poly_id
+        if 'Meta' in attrs and getattr(attrs['Meta'], 'poly_id', None):
+            attrs['__poly_id__'] = getattr(attrs['Meta'], 'poly_id') 
+
+        # Meta : options
+        if 'Meta' in attrs and getattr(attrs['Meta'], 'options', None):
+            attrs['__schema_options__'] = getattr(attrs['Meta'], 'options') 
+
         if '__poly_id__' in attrs:
             clear_poly = True
 
@@ -208,6 +224,8 @@ class ABCSchema(ABCMeta):
                 self._fields[k] = v
                 if k in items:
                     delattr(self, k)
+            elif k in self._fields:
+                self._fields.pop(k)  # a subclass has overriden the field
 
     def process_fields(self):
         """Performs field processing. Handles:
@@ -345,11 +363,15 @@ class Schema(AbstractSchema):
                 # if the field is missing, but it's required, set an error.
                 # if a value of None is allowed and we do not have a field, skip validation
                 # otherwise, validate the value
-                if missing and fields[key].required:
+                if missing and field.required:
                     errors[str_key] = FieldError(fields[key], 'required')
                     invalid = True
                 elif missing and field.allow_none is True:
                     pass
+                elif (missing or klass_value is None) and field.allow_none is False:
+                    errors[key] = FieldError(field, 'invalid')
+                elif (missing or klass_value is None) and allow_none is False and field.allow_none is not True:
+                    errors[key] = FieldError(field, 'invalid')
                 elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
                     pass
                 elif field.allow_none is True and klass_value is None:

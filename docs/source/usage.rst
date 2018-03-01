@@ -25,26 +25,6 @@ Schemas are defined by subclassing :class:`~ciri.core.Schema` and defining field
    # {'name': Eric', 'type': 'dev', 'created': '2018-01-01'}
 
 
-Schema Options
---------------
-
-All schemas have a :class:`~ciri.core.SchemaOptions` object which sets the default behavior. You can
-configure your own defaults by setting the `__schema_options__` property in your schema definition:
-
-::
-
-    from ciri import fields, Schema, SchemaOptions
-
-
-    class Person(Schema):
-   
-        __schema_options__ = SchemaOptions(allow_none=True)
-        
-        name = fields.String()
-
-    person = Person().serialize({})  # {'name': None} 
-
-
 Subclassing
 -----------
 
@@ -67,8 +47,53 @@ Schemas can be subclassed as you would normal objects.
         grandchildren = fields.List(Person())
 
 
-Validating Data
----------------
+Subclasses can override existing fields or remove them altogether:
+
+::
+
+    class Contact(Schema)
+        id = fields.Integer(required=True)
+        name = fields.String(required=True)
+        mobile = fields.String()
+        emergency_contact_id = fields.Integer() 
+
+    class EmergencyContact(Schema)
+        mobile = fields.String(required=True)
+        emergency_contact_id = None
+
+
+
+
+Behavior
+--------
+
+All schemas have a :class:`~ciri.core.SchemaOptions` object which sets the default behavior. You can
+configure your own defaults by setting the `__schema_options__` property in your schema definition.
+
+.. note::
+
+    Schema options are **not** inherited by subclasses by design. This allows schema composition to be
+    defined by the instanced schema and field behavior. For this reason, it's recommended to create
+    your own subclass of Schema if you want to modify all schemas behavior. Alternatively, you can
+    override the options as needed as shown below. 
+
+
+::
+
+    from ciri import fields, Schema, SchemaOptions
+
+
+    class Person(Schema):
+   
+        __schema_options__ = SchemaOptions(allow_none=True)
+        
+        name = fields.String()
+
+    person = Person().serialize({})  # {'name': None} 
+
+
+Validation
+----------
 
 Validate data using the :func:`~ciri.core.Schema.validate` method:
 
@@ -86,8 +111,8 @@ Check out the :ref:`error_handling` section for more details on what to do with 
 
 .. _serializing_data:
 
-Serializing Data
-----------------
+Serialization
+-------------
 
 Data is serialized using the :func:`~ciri.core.Schema.serialize` method:
 
@@ -118,8 +143,8 @@ being serialized is already valid, you can save time by skipping validation. Thi
 you are serializing database output or other known values.
 
 
-Deserializing Data
-------------------
+Deserialization
+---------------
 
 Data is deserialized using the :func:`~cir.core.Schema.deserialize` method. It behaves the same
 way as the serialization method and has the same validation caveats. Check out the :ref:`serializing_data`
@@ -134,8 +159,8 @@ section for more info.
     person.name  # Harry
 
 
-Encoding Data
--------------
+Encoding
+--------
 
 Data is encoded using the (you guessed it) :func:`~ciri.core.Schema.encode` method. By default, the 
 :func:`~ciri.core.Schema.validate` and :func:`~ciri.core.Schema.serialize` methods will be called and
@@ -155,8 +180,8 @@ The default encoder class is :class:`~ciri.encoder.JSONEncoder` but can be set i
 
 .. _error_handling:
 
-Error Handling
---------------
+Errors
+------
 
 Things go wrong. It's important to know *why* they went wrong. When a field is invalid,
 a :class:`~ciri.exception.FieldValidationError` is raised. The offending :class:`~ciri.fields.FieldError`
@@ -228,6 +253,43 @@ Here is an example of nested errors:
 .. note::
 
     Sequence fields will use the sequence index (coerced with :class:`str`) as the error key. 
+
+
+Composition
+-----------
+
+Schemas can be composed using the **__schema_include__** attribute. You can alternatively provide the
+**compose** attribute of the schema `Meta` class, which sets the schema include property for you. 
+
+Normal mixins work as well, and so does a dict of fields.
+
+::
+
+    class A(Schema):
+        a = fields.String()
+
+    class B(Schema):
+        b = fields.String()
+
+    class C(Schema):
+        c = fields.String()
+
+    class AB(A, B):
+        pass
+
+    class ABC(Schema):
+        
+        class Meta:
+           compose = [AB, C]
+
+    class ABCD(ABC):
+        
+        __schema_include__ = [{'d': fields.String()}]
+
+
+Schema composition can be very handy when you have many overlapping fields between schemas, but not all fields apply.
+For example, let's define some schemas for some imaginary API responses:
+
 
 
 .. rst-class:: spacer
@@ -311,7 +373,7 @@ Above we've used the **__poly_id__** attribute to define a *v1* and *v2* schema 
 
 Notice that each of these interactions utilize the same base polymorphic schema class, but
 will return different schema instances depending on the usage. This is important to know
-when performing checks like :function:`isinstance`, but for most other intents and purposes,
+when performing checks like `isinstance`, but for most other intents and purposes,
 they can be considered functionally equivalent.
 
 Here's a bit of code that may make that more clear:
