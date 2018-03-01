@@ -209,7 +209,7 @@ def test_schema_raise_errors_false():
 
 
 def test_simple_validator_with_invalid_value():
-    def validate_mark(schema, field, value):
+    def validate_mark(value, schema=None, field=None):
         if value == 'mark':
             return value
         raise FieldValidationError(FieldError(field, 'invalid'))
@@ -222,7 +222,7 @@ def test_simple_validator_with_invalid_value():
     assert schema._raw_errors['name'].message == fields.String().message.invalid
 
 def test_simple_validator_with_valid_value():
-    def validate_mark(schema, field, value):
+    def validate_mark(value, schema=None, field=None):
         if value == 'mark':
             return value
         raise FieldValidationError(FieldError(field, 'invalid'))
@@ -234,12 +234,12 @@ def test_simple_validator_with_valid_value():
 
 
 def test_multiple_validators_with_invalid_value():
-    def validate_mark(schema, field, value):
+    def validate_mark(value, schema=None, field=None):
         if value == 'mark':
             return value
         raise FieldValidationError(FieldError(field, 'invalid'))
 
-    def is_integer(schema, field, value):
+    def is_integer(value, **kwargs):
         if not isinstance(value, int):
             return False
         return True
@@ -253,12 +253,12 @@ def test_multiple_validators_with_invalid_value():
 
 
 def test_multiple_validators_with_valid_value():
-    def validate_mark(schema, field, value):
+    def validate_mark(value, **kwargs):
         if value == 'mark':
             return True
         return False
 
-    def is_integer(schema, field, value):
+    def is_integer(value, **kwargs):
         if not isinstance(value, int):
             return True
         return False
@@ -277,7 +277,7 @@ def test_field_serialization_name():
 
 
 def test_simple_pre_validate():
-    def not_fiona(schema, field, value):
+    def not_fiona(value, **kwargs):
         if value == 'fiona':
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
@@ -291,7 +291,7 @@ def test_simple_pre_validate():
 
 
 def test_simple_post_validate():
-    def not_fiona(schema, field, value):
+    def not_fiona(value, **kwargs):
         if value == 'fiona':
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
@@ -305,7 +305,7 @@ def test_simple_post_validate():
 
 
 def test_simple_pre_validate_error():
-    def not_fiona(schema, field, value):
+    def not_fiona(value, schema=None, field=None):
         if value == 'fiona':
             raise FieldValidationError(FieldError(field, 'invalid'))
         return value
@@ -321,7 +321,7 @@ def test_simple_pre_validate_error():
 
 
 def test_simple_pre_serializer():
-    def capitilize(schema, field, value):
+    def capitilize(value, schema, field):
         return value.title()
 
     class S(Schema):
@@ -333,7 +333,7 @@ def test_simple_pre_serializer():
 
 
 def test_simple_post_serializer():
-    def capitilize(schema, field, value):
+    def capitilize(value, schema, field):
         return value.title()
 
     class S(Schema):
@@ -345,7 +345,7 @@ def test_simple_post_serializer():
 
 
 def test_simple_pre_deserializer():
-    def capitilize(schema, field, value):
+    def capitilize(value, schema, field):
         return value.title()
 
     class S(Schema):
@@ -358,7 +358,7 @@ def test_simple_pre_deserializer():
 
 
 def test_simple_post_deserializer():
-    def capitilize(schema, field, value):
+    def capitilize(value, schema, field):
         return value.title()
 
     class S(Schema):
@@ -374,7 +374,7 @@ def test_method_pre_validate():
     class S(Schema):
         name = fields.String(pre_validate=['not_bella'])
 
-        def not_bella(self, schema, field, value):
+        def not_bella(self, value, schema=None, field=None):
             if value == 'bella':
                 raise FieldValidationError(FieldError(field, 'invalid'))
             return value
@@ -387,7 +387,7 @@ def test_failing_pre_validate():
     class S(Schema):
         name = fields.String(pre_validate=['not_bella'])
 
-        def not_bella(self, schema, field, value):
+        def not_bella(self, value, field=None, **kwargs):
             if value == 'bella':
                 raise FieldValidationError(FieldError(field, 'invalid'))
             return value

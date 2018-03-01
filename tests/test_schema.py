@@ -77,7 +77,7 @@ def test_halt_on_sub_errors():
 
 
 def test_subschema_pre_serializer():
-    def upper(schema, field, value):
+    def upper(value, **kwargs):
         return value.replace(' ', '_').upper()
 
     class Node(Schema):

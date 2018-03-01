@@ -350,7 +350,7 @@ class Schema(AbstractSchema):
                 if pre_validate:
                     for func in pre_validate.get(key, []):
                         try:
-                            valid[key] = func(parent, field, klass_value)
+                            valid[key] = func(klass_value, schema=parent, field=field)
                             missing = (valid[key] is SchemaFieldMissing)
                         except FieldValidationError as field_exc:
                             errors[str_key] = field_exc.error
@@ -385,7 +385,7 @@ class Schema(AbstractSchema):
                     if post_validate:
                         for validator in post_validate.get(key, []):
                             try:
-                                valid[key] = validator(parent, field, valid[key])
+                                valid[key] = validator(valid[key], schema=parent, field=field)
                             except FieldValidationError as field_exc:
                                 errors[str_key] = field_exc.error
                                 invalid = True
@@ -400,7 +400,7 @@ class Schema(AbstractSchema):
                 # run pre serialization functions
                 if pre_serialize:
                     for func in pre_serialize.get(key, []):
-                        valid[key] = func(parent, field, klass_value)
+                        valid[key] = func(klass_value, schema=parent, field=field)
                         missing = (valid[key] is SchemaFieldMissing)
 
                 # determine the field result name (serialized name)
@@ -418,7 +418,7 @@ class Schema(AbstractSchema):
                     # run post serialization functions
                     if post_serialize:
                         for func in post_serialize.get(key, []):
-                            valid[name] = func(parent, field, klass_value)
+                            valid[name] = func(klass_value, schema=parent, field=field)
 
                     # remove old keys if the serializer renames the field
                     if name != key:
@@ -429,7 +429,7 @@ class Schema(AbstractSchema):
                 # run pre deserialization functions
                 if pre_deserialize:
                     for func in pre_deserialize.get(key, []):
-                        valid[key] = func(parent, field, valid.get(key, klass_value))
+                        valid[key] = func(valid.get(key, klass_value), schema=parent, field=field)
                         missing = (valid[key] is SchemaFieldMissing)
 
                 # if it's allowed, and the field is missing, set the value to None
@@ -444,7 +444,7 @@ class Schema(AbstractSchema):
                     # run post deserialization functions
                     if post_deserialize:
                         for func in post_deserialize.get(key, []):
-                            valid[key] = func(parent, field, klass_value)
+                            valid[key] = func(klass_value, schema=parent, field=field)
         for e, err in errors.items():
             parent._raw_errors[e] = err
             parent._error_handler.add(e, err)
