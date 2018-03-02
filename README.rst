@@ -26,6 +26,14 @@ Install
     $ pip install ciri
 
 
+Documentation
+=============
+
+Documentation can be found at http://ciri.hellouser.net/ .
+
+Example
+=======
+
 .. code-block:: python
 
     import datetime
