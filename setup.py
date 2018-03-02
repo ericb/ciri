@@ -24,10 +24,16 @@ setup(
     version=find_version('ciri', '__init__.py'),
     description='Python Schema Library',
     url='https://github.com/ericb/ciri',
-    author='Eric Bobbitt <eric@hellosuer.net>, Daniel Imhoff <dwieeb@gmail.com>',
-    author_email='eric@hellouser.net'
-    packages=find_packages(exclude=('test*', 'docs*')),
+    project_urls={
+        'Documentation': 'https://ciri.hellouser.net',
+        'Source': 'https://github.com/ericb/ciri',
+        'Tracker': 'https://github.com/ericb/ciri/issues',
+    },
+    author='Eric Bobbitt <eric@hellouser.net>, Daniel Imhoff <dwieeb@gmail.com>',
+    author_email='eric@hellouser.net',
+    packages=find_packages(exclude=('test*', 'docs')),
     package_dir={'ciri': 'ciri'},
     include_package_data=True,
+    python_requires='>=2.6',
     license='MIT'
 )
