@@ -24,6 +24,7 @@ setup(
     version=find_version('ciri', '__init__.py'),
     description='Python Schema Library',
     long_description=read('README.rst'),
+    keywords='schema serialization deserialization serialize deserialize encode decode validation validate rest api',
     url='https://github.com/ericb/ciri',
     project_urls={
         'Documentation': 'https://ciri.hellouser.net',
@@ -36,5 +37,18 @@ setup(
     package_dir={'ciri': 'ciri'},
     include_package_data=True,
     python_requires='>=2.6',
-    license='MIT'
+    license='MIT',
+    classifiers=[
+        'Development Status :: 3 - Alpha',
+        'License :: OSI Approved :: MIT License',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 2.6',
+        'Programming Language :: Python :: 2.7',
+        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.4',
+        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
+        'Topic :: Software Development :: Libraries',
+        'Topic :: Utilities'
+    ]
 )
