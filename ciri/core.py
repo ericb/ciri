@@ -5,8 +5,8 @@ from ciri.abstract import (AbstractField, AbstractSchema, SchemaFieldDefault,
                            SchemaFieldMissing, UseSchemaOption)
 from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
-from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError
-from ciri.fields import FieldError, Schema as SchemaField
+from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError, RegistryError
+from ciri.fields import FieldError, Schema as SchemaField, SelfReference
 from ciri.registry import schema_registry
 
 
@@ -52,12 +52,14 @@ class SchemaOptions(object):
     :param error_handler: Schema error handling
     :param encoder: Schema encoding handler
     :param registry: Schema registry
+    :param output_missing: Include :class:`~ciri.core.SchemaFieldMissing` values in serialization output
 
     :type allow_none: bool
     :type raise_errors: bool
     :type error_handler: :class:`~ciri.core.ErrorHandler`
     :type encoder: :class:`~ciri.encoder.SchemaEncoder`
     :type registry: :class:`~ciri.registry.SchemaRegistry`
+    :type output_missing: bool
     """
 
     def __init__(self, *args, **kwargs):
@@ -66,13 +68,16 @@ class SchemaOptions(object):
             'raise_errors': True,
             'error_handler': ErrorHandler,
             'encoder': JSONEncoder(),
-            'registry': schema_registry
+            'registry': schema_registry,
+            'output_missing': False
         }
         options = dict((k, v) if k in defaults else ('_unknown', 1) for (k,v) in kwargs.items())
         options.pop('_unknown', None)
         defaults.update(options)
         for k, v in defaults.items():
             setattr(self, k, v)
+        if self.output_missing:  # implies None fields can be output
+            self.allow_none = True
 
 
 DEFAULT_SCHEMA_OPTIONS = SchemaOptions()
@@ -120,6 +125,7 @@ class ABCSchema(ABCMeta):
         cls, name, bases, attrs = cls.prepare_class(cls, name, bases, attrs)
         klass = ABCMeta.__new__(cls, name, bases, dict(attrs))
         klass._fields = {}
+        klass._tags = {}
         klass._elements = {}
         klass._subfields = {}
         klass._pending_schemas = {}
@@ -128,6 +134,7 @@ class ABCSchema(ABCMeta):
         klass.handle_bases(bases)
         klass.handle_poly(cls, name, bases, attrs)
         klass.handle_config()
+        klass.handle_tags()
         klass.find_fields()
         klass.process_fields()
         klass._callables.find(klass)
@@ -153,6 +160,10 @@ class ABCSchema(ABCMeta):
         # Meta : options
         if 'Meta' in attrs and getattr(attrs['Meta'], 'options', None):
             attrs['__schema_options__'] = getattr(attrs['Meta'], 'options') 
+
+        # Meta : tags
+        if 'Meta' in attrs and getattr(attrs['Meta'], 'tags', None):
+            attrs['__field_tags__'] = getattr(attrs['Meta'], 'tags')
 
         if '__poly_id__' in attrs:
             clear_poly = True
@@ -203,6 +214,11 @@ class ABCSchema(ABCMeta):
         if hasattr(self, '__schema_options__'):
             self._config = getattr(self, '__schema_options__')
 
+    def handle_tags(self):
+        """Handles the field tags magic method"""
+        if hasattr(self, '__field_tags__'):
+            self._tags = getattr(self, '__field_tags__')
+
     def find_fields(self):
         """Find the :class:`~ciri.fields.Field` attributes and store them in the
         schemas `_fields` attribute."""
@@ -240,13 +256,20 @@ class ABCSchema(ABCMeta):
                 if isinstance(v, SchemaField):
                     try:
                         self._fields[k] = v._get_schema()
-                    except AttributeError:
+                    except (AttributeError, RegistryError):
                         self._pending_schemas[k] = v
                     self._subfields[k] = v
                     self._elements[k] = True
                 else:
-                    if v.required or v.allow_none or (v.default is not SchemaFieldDefault):
+                    if v.required or (v.default is not SchemaFieldDefault):
                         self._elements[k] = True
+                    elif v.output_missing is True or (v.output_missing is UseSchemaOption and self._config.output_missing):
+                        self._elements[k] = True
+                    # update tags
+                    for tag in v.tags:
+                        if not self._tags.get(tag):
+                            self._tags[tag] = []
+                        self._tags[tag].append(k)
             elif isinstance(v, AbstractSchema):
                 self._subfields[k] = v
                 self._elements[k] = True
@@ -288,8 +311,9 @@ class Schema(AbstractSchema):
         pass
 
     def _iterate(self, fields, elements, data, validation_opts,
-                 parent=None, do_serialize=False,
-                 do_deserialize=False, do_validate=False):
+                 parent=None, do_serialize=False, exclude=[],
+                 do_deserialize=False, do_validate=False,
+                 whitelist=[], tags=[]):
         errors = {}
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
@@ -300,6 +324,7 @@ class Schema(AbstractSchema):
         post_validate = parent._callables.post_validate
         post_serialize = parent._callables.post_serialize
         post_deserialize = parent._callables.post_deserialize
+        output_missing = self._config.output_missing
 
         if do_validate:
             parent._raw_errors = {}
@@ -308,7 +333,12 @@ class Schema(AbstractSchema):
         if hasattr(data, '__dict__'):
             data = vars(data)
 
+        if whitelist:
+            elements = whitelist
+
         for key in elements:
+            if key in exclude:
+                continue
             str_key = str(key)
 
             # field value
@@ -324,14 +354,21 @@ class Schema(AbstractSchema):
                 parent._pending_schemas.pop(key)
 
             if key in parent._subfields:
+                if klass_value is None or missing:
+                    errors[key] = FieldError(parent._subfields[key], 'invalid')
+                    continue
                 data_keys = []
-                for k in data:
+                sub = klass_value
+                if hasattr(klass_value, '__dict__'):
+                    sub = vars(klass_value)
+                for k in sub:  # check the subfield elements to iterate
                     if field._fields.get(k):
                         data_keys.append(k)
                 key_cache = set(field._e + data_keys)
                 suberrors, valid[key] = self._iterate(field._fields, key_cache, klass_value, validation_opts,
                                                       parent=field, do_serialize=do_serialize, do_validate=do_validate,
-                                                      do_deserialize=do_deserialize)
+                                                      do_deserialize=do_deserialize, exclude=parent._subfields[key].exclude,
+                                                      whitelist=parent._subfields[key].whitelist)
                 if suberrors:
                     errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
                 continue
@@ -342,6 +379,12 @@ class Schema(AbstractSchema):
                     klass_value = fields[key].default(parent, field)
                 else:
                     klass_value = fields[key].default
+                missing = False
+
+            # if fields are missing and we allow them in the output,
+            # set the value to the field missing output value
+            if missing and output_missing:
+                klass_value = fields[key].missing_output_value
                 missing = False
 
             if do_validate:
@@ -415,6 +458,7 @@ class Schema(AbstractSchema):
                     valid[name] = None
                 else:
                     valid[name] = field.serialize(valid.get(key, klass_value))
+
                     # run post serialization functions
                     if post_serialize:
                         for func in post_serialize.get(key, []):
@@ -450,7 +494,7 @@ class Schema(AbstractSchema):
             parent._error_handler.add(e, err)
         return (errors, valid)
 
-    def validate(self, data=None, halt_on_error=False, key_cache=None):
+    def validate(self, data=None, halt_on_error=False, key_cache=None, exclude=[], whitelist=[]):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
@@ -466,27 +510,46 @@ class Schema(AbstractSchema):
                     data_keys.append(k)
             key_cache = set(self._e + data_keys)
 
-        errors, valid = self._iterate(self._fields, key_cache, data, self._validation_opts, parent=self, do_validate=True)
+        if whitelist:
+            key_cache = set(whitelist)
+
+        errors, valid = self._iterate(self._fields, key_cache, data,
+                                      self._validation_opts, parent=self,
+                                      do_validate=True, exclude=exclude,
+                                      whitelist=whitelist)
         if self._config.raise_errors and errors:
             raise ValidationError(self)
         return valid
 
-    def serialize(self, data=None, skip_validation=False):
+    def serialize(self, data=None, skip_validation=False, exclude=[], whitelist=[], tags=[]):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
 
-        data_keys = []
-        append = data_keys.append
-        fields = self._fields
-        for k in data:
-            if fields.get(k):
-                append(k)
-
-        elements = set(self._e + data_keys)
+        if tags:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in tags:
+                if k in self._tags:
+                    for t in self._tags[k]:
+                        append(t)
+            elements = set(data_keys)
+            whitelist = []
+        elif not whitelist:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in data:
+                if fields.get(k):
+                    append(k)
+            elements = set(self._e + data_keys)
+        else:
+            elements = set(whitelist)
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
-                                       do_serialize=True, do_validate=(not skip_validation))
+                                       do_serialize=True, do_validate=(not skip_validation),
+                                       exclude=exclude, whitelist=whitelist, tags=tags)
         if self._config.raise_errors and errors:
             raise ValidationError(self)
 

@@ -61,7 +61,7 @@ def test_missing_field_with_allow_none():
     class S(Schema):
         age = fields.Integer(allow_none=True)
     schema = S()
-    assert schema.serialize({'name': 2}) == {'age': None}
+    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
 
 
 def test_no_halt_on_error():
@@ -185,7 +185,7 @@ def test_schema_opts_allow_none_used():
         name = fields.String()
     schema = S()
     schema.config({'options': opts})
-    assert schema.serialize({}) == {'name': None}
+    assert schema.serialize({'name': None}) == {'name': None}
 
 
 def test_schema_opts_set_on_definition():
@@ -195,7 +195,7 @@ def test_schema_opts_set_on_definition():
         name = fields.String()
 
     schema = S()
-    assert schema.serialize({}) == {'name': None}
+    assert schema.serialize({'name': None}) == {'name': None}
 
 
 def test_schema_raise_errors_false():
@@ -484,3 +484,155 @@ def test_schema_field_remove():
 
     schema = ABRemoveC(a='a', b=7, c='c')
     assert schema.serialize() == {'a': 'a', 'b': 7}
+
+
+def test_exclude_all_fields():
+    class A(Schema):
+        a = fields.String()
+    assert A(a='a').serialize(exclude=['a']) == {}
+
+def test_exclude_single_field():
+    class ABC(Schema):
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+    assert ABC(a='a', b='b').serialize(exclude=['a']) == {'b': 'b'}
+
+def test_exclude_multiple_fields():
+    class ABC(Schema):
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+    assert ABC(a='a', b='b').serialize(exclude=['a', 'b']) == {}
+
+def test_exclude_required_field():
+    class ABC(Schema):
+        a = fields.String(required=True)
+        b = fields.String()
+        c = fields.String()
+    assert ABC(b='b').serialize(exclude=['a']) == {'b': 'b'}
+
+def test_exclude_self_reference():
+    class ABC(Schema):
+        a = fields.String()
+        abc = fields.SelfReference(exclude=['abc'])
+    assert ABC(a='root', abc=ABC(a='nested', abc=ABC(a='sublevel'))).serialize() == {'a': 'root', 'abc': {'a': 'nested'}}
+
+def test_exclude_schema_reference():
+    class Sub(Schema):
+        hello = fields.String(required=True)
+
+    class S(Schema):
+        name = fields.String(required=True)
+        active = fields.Boolean()
+        sub = fields.Schema(Sub, exclude=['hello'])
+
+    schema = S(name='ciri', active=True, sub=Sub(hello='testing'))
+    assert schema.serialize() == {'name': 'ciri', 'active': True, 'sub': {}}
+
+def test_default_missing_output_value():
+    class S(Schema):
+        class Meta:
+           options = SchemaOptions(output_missing=True)
+        name = fields.String()
+
+    schema = S()
+    assert schema.serialize({}) == {'name': None}
+
+def test_basic_whitelist():
+    class ABC(Schema):
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+    assert ABC(a='a', b='b', c='c').serialize(whitelist=['a', 'b']) == {'a': 'a', 'b': 'b'}
+
+def test_basic_whitelist_with_exclude():
+    class ABC(Schema):
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+    assert ABC(a='a', b='b', c='c').serialize(exclude=['b'], whitelist=['a', 'b']) == {'a': 'a'}
+
+def test_whitelist_on_schema_field():
+    class Sub(Schema):
+        hello = fields.String(required=True)
+        world = fields.String(required=True)
+
+    class S(Schema):
+        name = fields.String(required=True)
+        active = fields.Boolean()
+        sub = fields.Schema(Sub, whitelist=['hello'])
+
+    schema = S(name='ciri', active=True, sub=Sub(hello='testing'))
+    assert schema.serialize() == {'name': 'ciri', 'active': True, 'sub': {'hello': 'testing'}}
+
+def test_whitelist_on_self_ref():
+    class ABC(Schema):
+        a = fields.String()
+        abc = fields.SelfReference(whitelist=['a'])
+    assert ABC(a='root', abc=ABC(a='nested', abc=ABC(a='sublevel'))).serialize() == {'a': 'root', 'abc': {'a': 'nested'}}
+
+def test_whitelist_on_self_ref_with_exclude():
+    class ABC(Schema):
+        a = fields.String()
+        abc = fields.SelfReference(whitelist=['a'])
+    assert ABC(a='root', abc=ABC(a='nested', abc=ABC(a='sublevel'))).serialize(exclude=['a']) == {'abc': {'a': 'nested'}}
+
+def test_whitelist_on_self_ref_with_nested_exclude():
+    class ABC(Schema):
+        a = fields.String()
+        abc = fields.SelfReference(whitelist=['a'], exclude=['a'])
+    assert ABC(a='root', abc=ABC(a='nested', abc=ABC(a='sublevel'))).serialize() == {'a': 'root', 'abc': {}}
+
+@pytest.mark.parametrize("role, expected", [
+    ['a', {'a': 'a'}],
+    ['ab', {'a': 'a', 'b': 'b'}],
+    ['all', {'a': 'a', 'b': 'b', 'c': 'c'}]
+])
+def test_basic_output_tag(role, expected):
+    class ABC(Schema):
+
+        __field_tags__ = {'a': ['a'], 'ab': ['a', 'b'], 'all': ['a', 'b', 'c']}
+
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize(tags=[role]) == expected
+
+
+@pytest.mark.parametrize("role, expected", [
+    ['a', {'a': 'a'}],
+    ['ab', {'a': 'a', 'b': 'b'}],
+    ['all', {'a': 'a', 'b': 'b', 'c': 'c'}]
+])
+def test_meta_output_tag(role, expected):
+    class ABC(Schema):
+
+        a = fields.String(tags=['a', 'ab', 'all'])
+        b = fields.String(tags=['ab', 'all'])
+        c = fields.String(tags=['all'])
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize(tags=[role]) == expected
+
+
+def test_tag_mixed_with_exclude():
+    class ABC(Schema):
+        a = fields.String(tags=['a', 'ab', 'all'])
+        b = fields.String(tags=['ab', 'all'])
+        c = fields.String(tags=['all'])
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize(exclude=['a'], tags=['ab']) == {'b': 'b'}
+
+
+def test_tag_mixed_with_whitelist_and_exclude():
+    class ABC(Schema):
+        a = fields.String(tags=['a', 'ab', 'all'])
+        b = fields.String(tags=['ab', 'all'])
+        c = fields.String(tags=['all'])
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize(whitelist=['a', 'b', 'c'], exclude=['a'], tags=['ab']) == {'b': 'b'}

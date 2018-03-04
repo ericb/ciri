@@ -23,15 +23,6 @@ def test_schema_validation():
     assert schema._raw_errors['foo'].errors['a'].message == String().message.required
 
 
-def test_schema_validation():
-    class S(Schema):
-        foo = SubSchema(FooSchema)
-    schema = S()
-    with pytest.raises(ValidationError):
-        schema.validate({'foo': {}})
-    assert schema._raw_errors['foo'].errors['a'].message == String().message.required
-
-
 def test_schema_serialization():
     class S(Schema):
         foo = SubSchema(FooSchema)

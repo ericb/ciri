@@ -76,7 +76,8 @@ class Field(AbstractField):
     __slots__ = ['name', 'required', 'default', 'allow_none',
                  '_messages', 'message', '_schema', 'validators',
                  'pre_validate', 'pre_serialize', 'pre_deserialize',
-                 'post_validate', 'post_serialize', 'post_deserialize']
+                 'post_validate', 'post_serialize', 'post_deserialize',
+                 'missing_output_value', 'tags']
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
@@ -85,6 +86,9 @@ class Field(AbstractField):
         self.allow_none = kwargs.get('allow_none', UseSchemaOption)
         self._messages = kwargs.get('messages', {})
         self.message = FieldMessageContainer(self)
+        self.output_missing = kwargs.get('output_missing', UseSchemaOption)
+        self.missing_output_value = kwargs.get('missing_output_value', None)
+        self.tags = kwargs.get('tags', [])
 
         callables = ['pre_validate', 'pre_serialize', 'pre_deserialize',
                      'post_validate', 'post_serialize', 'post_deserialize']
@@ -97,7 +101,7 @@ class Field(AbstractField):
         else:
             setattr(self, type_, [])
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         """
         Serialization method 
 
@@ -138,7 +142,7 @@ class String(Field):
         self.trim = kwargs.get('trim', True)
         self.encoding = kwargs.get('unicode_enc', 'utf-8')
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         if str is not str_:
             return str_(value, self.encoding)
         return value
@@ -168,7 +172,7 @@ class Integer(Field):
 
     messages = {'invalid': 'Field is not a valid Integer'}
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         return value
 
     def deserialize(self, value):
@@ -200,7 +204,7 @@ class Float(Field):
     def new(self, *args, **kwargs):
         self.strict = kwargs.get('strict', False)  # allow integers to be passed and converted to a float
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         return value
 
     def deserialize(self, value):
@@ -225,7 +229,7 @@ class Float(Field):
 
 class Boolean(Field):
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         if value:
             return True
         return False
@@ -244,7 +248,7 @@ Bool = Boolean
 
 class Dict(Field):
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         return value
 
     def deserialize(self, value):
@@ -278,7 +282,7 @@ class List(Field):
             raise ValueError("'of' field must be a subclass of AbstractField or AbstractSchema")
         self.items = kwargs.get('items', [])
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         return [self.field.serialize(v) for v in value]
 
     def deserialize(self, value):
@@ -325,6 +329,9 @@ class Schema(Field):
         self.raw_schema = schema
         self.cached = None
         self.schema = schema
+        self.exclude = kwargs.get('exclude', [])
+        self.whitelist = kwargs.get('whitelist', [])
+        self.tags = kwargs.get('tags', [])
 
     def _get_schema(self):
         if not self.cached:
@@ -339,20 +346,20 @@ class Schema(Field):
             self.cached._schema = self._schema
         return self.cached
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         schema = self.cached or self._get_schema()
-        return schema.serialize(value)
+        return schema.serialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def deserialize(self, value):
         schema = self.cached or self._get_schema()
         return schema.__class__(**value)
 
     def validate(self, value):
+        if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
+            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
         schema = self.cached or self._get_schema()
         schema._raw_errors = {}
         schema._error_handler.reset()
-        if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
-            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
         try:
             return schema.validate(value, **schema._schema._validation_opts)
         except ValidationError as e:
@@ -368,11 +375,43 @@ class Schema(Field):
         super(Field, self).__setattr__(k, v)
 
 
+class SelfReference(Field):
+
+    __slots__ = ['exclude']
+
+    messages = {'invalid': 'Invalid Schema',
+                'invalid_mapping': 'Field is not a valid Schema Mapping type'}
+
+    def new(self, *args, **kwargs):
+        self.exclude = kwargs.get('exclude', [])
+        self.whitelist = kwargs.get('whitelist', [])
+        self.tags = kwargs.get('tags', [])
+
+    def serialize(self, value, **kwargs):
+        schema = self._schema.__class__()
+        return schema.serialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
+
+    def deserialize(self, value):
+        schema = self._schema
+        return schema.__class__(**value)
+
+    def validate(self, value):
+        if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
+            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
+        schema = self._schema.__class__()
+        schema._raw_errors = {}
+        schema._error_handler.reset()
+        try:
+            return schema.validate(value, **self._schema._validation_opts)
+        except ValidationError as e:
+            raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
+
+
 class Date(Field):
 
     messages = {'invalid': 'Invalid ISO-8601 Date'}
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         try:
             value = datetime.datetime(value.year, value.month, value.day)
             return value.isoformat('_').split('_')[0]
@@ -414,7 +453,7 @@ class DateTime(Field):
 
     messages = {'invalid': 'Invalid ISO-8601 DateTime'}
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         try:
             return value.isoformat()
         except Exception:
@@ -439,7 +478,7 @@ class UUID(Field):
 
     messages = {'invalid': 'Field is not a valid UUID'}
 
-    def serialize(self, value):
+    def serialize(self, value, **kwargs):
         return str(value)
 
     def deserialize(self, value):
@@ -453,3 +492,5 @@ class UUID(Field):
         if isinstance(value, uuid.UUID):
             return value
         raise FieldValidationError(FieldError(self, 'invalid'))
+
+
