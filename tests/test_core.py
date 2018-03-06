@@ -276,7 +276,7 @@ def test_field_serialization_name():
     assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
 
 
-def test_simple_pre_validate():
+def test_simple_field_pre_validate():
     def not_fiona(value, **kwargs):
         if value == 'fiona':
             raise FieldValidationError(FieldError(self, 'invalid'))
@@ -290,7 +290,7 @@ def test_simple_pre_validate():
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'foo bar', 'last_name': 'jenkins'}
 
 
-def test_simple_post_validate():
+def test_simple_field_post_validate():
     def not_fiona(value, **kwargs):
         if value == 'fiona':
             raise FieldValidationError(FieldError(self, 'invalid'))
@@ -304,7 +304,7 @@ def test_simple_post_validate():
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'foo bar', 'last_name': 'jenkins'}
 
 
-def test_simple_pre_validate_error():
+def test_simple_pre_field_validate_error():
     def not_fiona(value, schema=None, field=None):
         if value == 'fiona':
             raise FieldValidationError(FieldError(field, 'invalid'))
@@ -320,7 +320,7 @@ def test_simple_pre_validate_error():
     assert schema._raw_errors['first_name'].message == fields.String().message.invalid
 
 
-def test_simple_pre_serializer():
+def test_simple_field_pre_serializer():
     def capitilize(value, schema, field):
         return value.title()
 
@@ -332,7 +332,7 @@ def test_simple_pre_serializer():
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
 
 
-def test_simple_post_serializer():
+def test_simple_field_post_serializer():
     def capitilize(value, schema, field):
         return value.title()
 
@@ -344,7 +344,7 @@ def test_simple_post_serializer():
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
 
 
-def test_simple_pre_deserializer():
+def test_simple_field_pre_deserializer():
     def capitilize(value, schema, field):
         return value.title()
 
@@ -357,7 +357,7 @@ def test_simple_pre_deserializer():
     assert s.first_name == 'Foo Bar'
 
 
-def test_simple_post_deserializer():
+def test_simple_field_post_deserializer():
     def capitilize(value, schema, field):
         return value.title()
 
@@ -370,7 +370,7 @@ def test_simple_post_deserializer():
     assert s.first_name == 'Foo Bar'
 
 
-def test_method_pre_validate():
+def test_method_field_pre_validate():
     class S(Schema):
         name = fields.String(pre_validate=['not_bella'])
 
@@ -383,7 +383,7 @@ def test_method_pre_validate():
     assert schema.serialize({'name': 'sybil'}) == {'name': 'sybil'}
 
 
-def test_failing_pre_validate():
+def test_failing_field_pre_validate():
     class S(Schema):
         name = fields.String(pre_validate=['not_bella'])
 
@@ -636,3 +636,82 @@ def test_tag_mixed_with_whitelist_and_exclude():
 
     schema = ABC(a='a', b='b', c='c')
     assert schema.serialize(whitelist=['a', 'b', 'c'], exclude=['a'], tags=['ab']) == {'b': 'b'}
+
+
+def test_schema_callable():
+    class ABC(Schema):
+
+        __schema_callables__ = {
+            'pre_serialize': ['d_e_f']
+        }
+
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+
+        def d_e_f(self, data, **kwargs):
+            data['a'] = 'd'
+            data['b'] = 'e'
+            data['c'] = 'f'
+            return data
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize() == {'a': 'd', 'b': 'e', 'c': 'f'}
+
+def test_meta_schema_callable():
+    class ABC(Schema):
+
+        class Meta:
+            pre_serialize = 'd_e_f'
+
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+
+        def d_e_f(self, data, **kwargs):
+            data['a'] = 'd'
+            data['b'] = 'e'
+            data['c'] = 'f'
+            return data
+
+    schema = ABC(a='a', b='b', c='c')
+    assert schema.serialize() == {'a': 'd', 'b': 'e', 'c': 'f'}
+
+def test_schema_context():
+    class ABC(Schema):
+
+        class Meta:
+            pre_serialize = 'd_e_f'
+
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+
+        def d_e_f(self, data, context=None, **kwargs):
+            for x in context:
+                data[x] = context[x]
+            return data
+
+    schema = ABC(a='a', b='b', c='c')
+    schema.context.update({'a': 'd', 'b': 'e', 'c': 'f'})
+    assert schema.serialize() == {'a': 'd', 'b': 'e', 'c': 'f'}
+
+def test_schema_serialize_context():
+    class ABC(Schema):
+
+        class Meta:
+            pre_serialize = 'd_e_f'
+
+        a = fields.String()
+        b = fields.String()
+        c = fields.String()
+
+        def d_e_f(self, data, context=None, **kwargs):
+            for x in context:
+                data[x] = context[x]
+            return data
+
+    schema = ABC(a='a', b='b', c='c')
+    schema.context = {'a': 'a'}
+    ctx = {'a': 'd', 'b': 'e', 'c': 'f'}
+    assert schema.serialize(context=ctx) == {'a': 'd', 'b': 'e', 'c': 'f'}

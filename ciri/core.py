@@ -89,6 +89,33 @@ class SchemaCallableObject(object):
         self.callables = ['pre_validate', 'pre_serialize', 'pre_deserialize',
                           'post_validate', 'post_serialize', 'post_deserialize']
         for c in self.callables:
+            setattr(self, c, kwargs.get(c, []))
+
+    def find(self, schema):
+        lookup = getattr(schema, '__schema_callables__', None)
+        if not lookup:
+            setattr(schema, '__schema_callables__', {})
+            lookup = schema.__schema_callables__
+        for c in self.callables:
+            schema_callable = schema.__schema_callables__.get(c)
+            if schema_callable:
+                updated_callables = []
+                for item in schema_callable:
+                    if callable(item):
+                        updated_callables.append(item)
+                    else:
+                        method = getattr(schema, item, None)
+                        if callable(method):
+                            updated_callables.append(method.__get__(schema, None))
+                setattr(self, c, updated_callables)
+
+
+class FieldCallableObject(object):
+
+    def __init__(self, *args, **kwargs):
+        self.callables = ['pre_validate', 'pre_serialize', 'pre_deserialize',
+                          'post_validate', 'post_serialize', 'post_deserialize']
+        for c in self.callables:
             setattr(self, c, kwargs.get(c, {}))
 
     def find(self, schema):
@@ -129,7 +156,8 @@ class ABCSchema(ABCMeta):
         klass._elements = {}
         klass._subfields = {}
         klass._pending_schemas = {}
-        klass._callables = SchemaCallableObject()
+        klass._schema_callables = SchemaCallableObject()
+        klass._field_callables = FieldCallableObject()
         klass._config = DEFAULT_SCHEMA_OPTIONS
         klass.handle_bases(bases)
         klass.handle_poly(cls, name, bases, attrs)
@@ -137,7 +165,8 @@ class ABCSchema(ABCMeta):
         klass.handle_tags()
         klass.find_fields()
         klass.process_fields()
-        klass._callables.find(klass)
+        klass._schema_callables.find(klass)
+        klass._field_callables.find(klass)
         return klass
 
     @staticmethod
@@ -164,6 +193,17 @@ class ABCSchema(ABCMeta):
         # Meta : tags
         if 'Meta' in attrs and getattr(attrs['Meta'], 'tags', None):
             attrs['__field_tags__'] = getattr(attrs['Meta'], 'tags')
+
+        # Meta : Callables
+        if '__schema_callables__' not in attrs:
+            attrs['__schema_callables__'] = {}
+        callables = SchemaCallableObject().callables
+        for type_ in callables:
+            if 'Meta' in attrs and getattr(attrs['Meta'], type_, None):
+                c = getattr(attrs['Meta'], type_)
+                if type(c) not in (list, set,):
+                    c = [c]
+                attrs['__schema_callables__'][type_] = c
 
         if '__poly_id__' in attrs:
             clear_poly = True
@@ -295,6 +335,7 @@ class Schema(AbstractSchema):
         for k in self._fields:
             self._fields[k]._schema = self
         self.config({})
+        self.context = {}
 
     def config(self, cfg):
         if cfg.get('options') is not None:
@@ -318,12 +359,12 @@ class Schema(AbstractSchema):
         valid = {}
         halt_on_error = validation_opts.get('halt_on_error')
         allow_none = self._config.allow_none
-        pre_validate = parent._callables.pre_validate
-        pre_serialize = parent._callables.pre_serialize
-        pre_deserialize = parent._callables.pre_deserialize
-        post_validate = parent._callables.post_validate
-        post_serialize = parent._callables.post_serialize
-        post_deserialize = parent._callables.post_deserialize
+        pre_validate = parent._field_callables.pre_validate
+        pre_serialize = parent._field_callables.pre_serialize
+        pre_deserialize = parent._field_callables.pre_deserialize
+        post_validate = parent._field_callables.post_validate
+        post_serialize = parent._field_callables.post_serialize
+        post_deserialize = parent._field_callables.post_deserialize
         output_missing = self._config.output_missing
 
         if do_validate:
@@ -521,10 +562,17 @@ class Schema(AbstractSchema):
             raise ValidationError(self)
         return valid
 
-    def serialize(self, data=None, skip_validation=False, exclude=[], whitelist=[], tags=[]):
+    def serialize(self, data=None, skip_validation=False, exclude=[],
+                  whitelist=[], tags=[], context=None):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
+
+        context = context or self.context
+
+        if hasattr(self._schema_callables, 'pre_serialize'):
+            for c in getattr(self._schema_callables, 'pre_serialize'):
+                data = c(data, schema=self, context=context)
 
         if tags:
             data_keys = []
