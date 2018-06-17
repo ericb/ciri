@@ -12,10 +12,10 @@ from ciri.util.dateparse import parse_date, parse_datetime
 
 class FieldError(object):
 
-    def __init__(self, field_cls, field_msg_key, errors=None, *args, **kwargs):
+    def __init__(self, field_cls, field_msg_key=None, errors=None, *args, **kwargs):
         self.field = field_cls
         self.message_key = field_msg_key
-        self.message = field_cls.message[field_msg_key]
+        self.message = kwargs.get('message') or field_cls.message[field_msg_key]
         self.errors = errors
 
 
@@ -377,28 +377,34 @@ class Schema(Field):
 
 class SelfReference(Field):
 
-    __slots__ = ['exclude']
+    __slots__ = ['exclude', 'cached']
 
     messages = {'invalid': 'Invalid Schema',
                 'invalid_mapping': 'Field is not a valid Schema Mapping type'}
 
     def new(self, *args, **kwargs):
+        self.cached = None
         self.exclude = kwargs.get('exclude', [])
         self.whitelist = kwargs.get('whitelist', [])
         self.tags = kwargs.get('tags', [])
 
+    def _get_schema(self):
+        if not self.cached:
+            self.cached = self._schema.__class__()
+        return self.cached
+
     def serialize(self, value, **kwargs):
-        schema = self._schema.__class__()
+        schema = self.cached or self._get_schema()
         return schema.serialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def deserialize(self, value):
-        schema = self._schema
+        schema = self.cached or self._get_schema()
         return schema.__class__(**value)
 
     def validate(self, value):
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema = self._schema.__class__()
+        schema = self.cached or self._get_schema()
         schema._raw_errors = {}
         schema._error_handler.reset()
         try:

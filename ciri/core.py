@@ -6,7 +6,7 @@ from ciri.abstract import (AbstractField, AbstractSchema, SchemaFieldDefault,
 from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
 from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError, RegistryError
-from ciri.fields import FieldError, Schema as SchemaField, SelfReference
+from ciri.fields import FieldError, Schema as SchemaField
 from ciri.registry import schema_registry
 
 
@@ -410,6 +410,7 @@ class Schema(AbstractSchema):
                                                       parent=field, do_serialize=do_serialize, do_validate=do_validate,
                                                       do_deserialize=do_deserialize, exclude=parent._subfields[key].exclude,
                                                       whitelist=parent._subfields[key].whitelist)
+                klass_value = valid[key]
                 if suberrors:
                     errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
                 continue
@@ -434,7 +435,7 @@ class Schema(AbstractSchema):
                 if pre_validate:
                     for func in pre_validate.get(key, []):
                         try:
-                            valid[key] = func(klass_value, schema=parent, field=field)
+                            klass_value = valid[key] = func(klass_value, schema=parent, field=field)
                             missing = (valid[key] is SchemaFieldMissing)
                         except FieldValidationError as field_exc:
                             errors[str_key] = field_exc.error
@@ -462,14 +463,14 @@ class Schema(AbstractSchema):
                     pass
                 elif not missing:
                     try:
-                        valid[key] = field.validate(klass_value)
+                        klass_value = valid[key] = field.validate(klass_value)
                     except FieldValidationError as field_exc:
                         errors[str_key] = field_exc.error
                         invalid = True
                     if post_validate:
                         for validator in post_validate.get(key, []):
                             try:
-                                valid[key] = validator(valid[key], schema=parent, field=field)
+                                klass_value = valid[key] = validator(valid[key], schema=parent, field=field)
                             except FieldValidationError as field_exc:
                                 errors[str_key] = field_exc.error
                                 invalid = True
@@ -484,7 +485,7 @@ class Schema(AbstractSchema):
                 # run pre serialization functions
                 if pre_serialize:
                     for func in pre_serialize.get(key, []):
-                        valid[key] = func(klass_value, schema=parent, field=field)
+                        klass_value = valid[key] = func(klass_value, schema=parent, field=field)
                         missing = (valid[key] is SchemaFieldMissing)
 
                 # determine the field result name (serialized name)
@@ -514,22 +515,22 @@ class Schema(AbstractSchema):
                 # run pre deserialization functions
                 if pre_deserialize:
                     for func in pre_deserialize.get(key, []):
-                        valid[key] = func(valid.get(key, klass_value), schema=parent, field=field)
+                        klass_value = valid[key] = func(valid.get(key, klass_value), schema=parent, field=field)
                         missing = (valid[key] is SchemaFieldMissing)
 
                 # if it's allowed, and the field is missing, set the value to None
                 if missing and allow_none and field.allow_none is UseSchemaOption:
-                    valid[key] = None
+                    klass_value = valid[key] = None
                 elif missing and field.allow_none:
-                    valid[key] = None
+                    klass_value = valid[key] = None
                 elif klass_value is None and field.allow_none:
-                    valid[key] = None
+                    klass_value = valid[key] = None
                 else:
-                    valid[key] = field.deserialize(valid.get(key, klass_value))
+                    klass_value = valid[key] = field.deserialize(valid.get(key, klass_value))
                     # run post deserialization functions
                     if post_deserialize:
                         for func in post_deserialize.get(key, []):
-                            valid[key] = func(klass_value, schema=parent, field=field)
+                            klass_value = valid[key] = func(klass_value, schema=parent, field=field)
         for e, err in errors.items():
             parent._raw_errors[e] = err
             parent._error_handler.add(e, err)
