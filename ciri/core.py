@@ -425,9 +425,8 @@ class Schema(AbstractSchema):
 
             # if fields are missing and we allow them in the output,
             # set the value to the field missing output value
-            if missing and output_missing:
+            if missing and (fields[key].output_missing is True or output_missing):
                 klass_value = fields[key].missing_output_value
-                missing = False
 
             if do_validate:
 
