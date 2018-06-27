@@ -24,13 +24,6 @@ def test_empty_validation():
     assert schema.errors == {}
 
 
-def test_default_value():
-    class S(Schema):
-        active = fields.Boolean(default=True)
-    schema = S()
-    assert schema.serialize({}) == {'active': True}
-
-
 def test_default_callable():
     def make_name(schema, field):
         return 'audrey'
@@ -39,51 +32,6 @@ def test_default_callable():
         name = fields.String(default=make_name)
     schema = S()
     assert schema.serialize({}) == {'name': 'audrey'}
-
-
-def test_required_field():
-    class S(Schema):
-        name = fields.String(required=True)
-    schema = S()
-    with pytest.raises(ValidationError):
-        schema.serialize({})
-    assert schema._raw_errors['name'].message == fields.String().message.required
-
-
-def test_allow_none_field():
-    class S(Schema):
-        age = fields.Integer(allow_none=True)
-    schema = S()
-    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
-
-
-def test_missing_field_with_allow_none():
-    class S(Schema):
-        age = fields.Integer(allow_none=True)
-    schema = S()
-    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
-
-
-def test_no_halt_on_error():
-    class S(Schema):
-        name = fields.String(required=True)
-        age = fields.Integer(required=True)
-
-    schema = S()
-    with pytest.raises(ValidationError):
-        schema.validate()
-    assert len(schema.errors) == 2
-
-
-def test_halt_on_error():
-    class S(Schema):
-        name = fields.String(required=True)
-        age = fields.Integer(required=True)
-
-    schema = S()
-    with pytest.raises(ValidationError):
-        schema.validate(halt_on_error=True)
-    assert len(schema.errors) == 1
 
 
 def test_multiple_invalid_fields():
@@ -537,6 +485,7 @@ def test_default_missing_output_value():
         name = fields.String()
 
     schema = S()
+    errors = {}
     assert schema.serialize({}) == {'name': None}
 
 def test_basic_whitelist():

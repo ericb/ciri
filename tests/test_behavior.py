@@ -1,0 +1,87 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
+
+from ciri import fields
+from ciri.fields import FieldError
+from ciri.core import Schema, SchemaOptions
+from ciri.registry import SchemaRegistry, schema_registry
+from ciri.exception import ValidationError, SerializationError, FieldValidationError
+
+import pytest
+
+
+def test_default_value():
+    class S(Schema):
+        active = fields.Boolean(default=True)
+    schema = S()
+    assert schema.serialize({}) == {'active': True}
+
+
+def test_required_field():
+    class S(Schema):
+        name = fields.String(required=True)
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({})
+    assert schema._raw_errors['name'].message == fields.String().message.required
+
+
+def test_required_field_with_allowed_none():
+    class S(Schema):
+        name = fields.String(required=True, allowed_none=True)
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.serialize({'name': None})
+    assert schema._raw_errors['name'].message == fields.String().message.required
+
+
+def test_allow_none_field():
+    class S(Schema):
+        age = fields.Integer(allow_none=True)
+    schema = S()
+    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
+
+
+def test_missing_field_with_allow_none():
+    class S(Schema):
+        age = fields.Integer(allow_none=True)
+    schema = S()
+    assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
+
+
+def test_missing_field_with_output_missing():
+    class S(Schema):
+        age = fields.Integer(output_missing=True)
+    schema = S()
+    assert schema.serialize({'name': 2}) == {'age': None}
+
+
+def test_output_missing_value():
+    class S(Schema):
+        age = fields.Integer(output_missing=True, missing_output_value=5)
+    schema = S()
+    assert schema.serialize({'name': 2}) == {'age': 5}
+
+
+def test_no_halt_on_error():
+    class S(Schema):
+        name = fields.String(required=True)
+        age = fields.Integer(required=True)
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.validate()
+    assert len(schema.errors) == 2
+
+
+def test_halt_on_error():
+    class S(Schema):
+        name = fields.String(required=True)
+        age = fields.Integer(required=True)
+
+    schema = S()
+    with pytest.raises(ValidationError):
+        schema.validate(halt_on_error=True)
+    assert len(schema.errors) == 1

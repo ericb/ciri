@@ -76,8 +76,6 @@ class SchemaOptions(object):
         defaults.update(options)
         for k, v in defaults.items():
             setattr(self, k, v)
-        if self.output_missing:  # implies None fields can be output
-            self.allow_none = True
 
 
 DEFAULT_SCHEMA_OPTIONS = SchemaOptions()
@@ -384,10 +382,13 @@ class Schema(AbstractSchema):
 
             # field value
             klass_value = data.get(key, SchemaFieldMissing)
-            missing = (klass_value is SchemaFieldMissing)
             invalid = False
 
             field = fields[key]
+            missing = (klass_value is SchemaFieldMissing)
+            if not missing:
+                # required overrides
+                missing = (key not in self._subfields and field.required and klass_value == field.missing_output_value)
 
             # if we encounter a schema field, cache it
             if key in parent._pending_schemas:
@@ -423,9 +424,10 @@ class Schema(AbstractSchema):
                     klass_value = fields[key].default
                 missing = False
 
-            # if fields are missing and we allow them in the output,
-            # set the value to the field missing output value
-            if missing and (fields[key].output_missing is True or output_missing):
+            # if fields are not required, but missing and
+            # we allow them in the output, set the value to
+            # the field missing output value
+            if not field.required and missing and (fields[key].output_missing is True or output_missing):
                 klass_value = fields[key].missing_output_value
 
             if do_validate:
@@ -452,13 +454,13 @@ class Schema(AbstractSchema):
                     invalid = True
                 elif missing and field.allow_none is True:
                     pass
+                elif klass_value == field.missing_output_value:
+                    pass
                 elif (missing or klass_value is None) and field.allow_none is False:
                     errors[key] = FieldError(field, 'invalid')
                 elif (missing or klass_value is None) and allow_none is False and field.allow_none is not True:
                     errors[key] = FieldError(field, 'invalid')
                 elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
-                    pass
-                elif field.allow_none is True and klass_value is None:
                     pass
                 elif not missing:
                     try:
@@ -491,7 +493,9 @@ class Schema(AbstractSchema):
                 name = field.name or key
 
                 # if it's allowed, and the field is missing, set the value to None
-                if missing and allow_none and field.allow_none is UseSchemaOption:
+                if missing and klass_value == field.missing_output_value:
+                    klass_value = valid[key] = field.missing_output_value
+                elif missing and allow_none and field.allow_none is UseSchemaOption:
                     valid[name] = None
                 elif missing and field.allow_none:
                     valid[name] = None
@@ -518,7 +522,9 @@ class Schema(AbstractSchema):
                         missing = (valid[key] is SchemaFieldMissing)
 
                 # if it's allowed, and the field is missing, set the value to None
-                if missing and allow_none and field.allow_none is UseSchemaOption:
+                if missing and klass_value == field.missing_output_value:
+                    klass_value = valid[key] = field.missing_output_value
+                elif missing and allow_none and field.allow_none is UseSchemaOption:
                     klass_value = valid[key] = None
                 elif missing and field.allow_none:
                     klass_value = valid[key] = None
