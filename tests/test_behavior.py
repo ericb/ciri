@@ -51,6 +51,17 @@ def test_missing_field_with_allow_none():
     assert schema.serialize({'name': 2, 'age': None}) == {'age': None}
 
 
+def test_output_missing_mix():
+    class S(Schema):
+        class Meta:
+            options = SchemaOptions(output_missing=True)
+        a = fields.Integer(output_missing=True)
+        b = fields.Integer()
+        c = fields.Integer(output_missing=False)
+    schema = S()
+    assert schema.serialize({}) == {'a': None, 'b': None}
+
+
 def test_missing_field_with_output_missing():
     class S(Schema):
         age = fields.Integer(output_missing=True)
@@ -58,11 +69,25 @@ def test_missing_field_with_output_missing():
     assert schema.serialize({'name': 2}) == {'age': None}
 
 
+def test_missing_field_with_output_missing_deserialization():
+    class S(Schema):
+        age = fields.Integer(output_missing=True)
+    schema = S()
+    assert schema.deserialize({'name': 2}).age == None
+
+
 def test_output_missing_value():
     class S(Schema):
         age = fields.Integer(output_missing=True, missing_output_value=5)
     schema = S()
     assert schema.serialize({'name': 2}) == {'age': 5}
+
+
+def test_output_missing_value_deserialization():
+    class S(Schema):
+        age = fields.Integer(output_missing=True, missing_output_value=5)
+    schema = S()
+    assert schema.deserialize({'name': 2}).age == 5 
 
 
 def test_no_halt_on_error():
