@@ -1,7 +1,10 @@
 import logging
 from abc import ABCMeta
 
-from ciri.abstract import (AbstractField, AbstractSchema, SchemaFieldDefault,
+from ciri.abstract import (AbstractField,
+                           AbstractSchema,
+                           AbstractPolySchema,
+                           SchemaFieldDefault,
                            SchemaFieldMissing, UseSchemaOption)
 from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
@@ -132,10 +135,6 @@ class FieldCallableObject(object):
                             if callable(method):
                                 updated_callables.append(method.__get__(schema, None))
                     getattr(self, c)[key] = updated_callables
-
-
-class AbstractPolySchema(AbstractSchema):
-    pass
 
 
 class ABCSchema(ABCMeta):
