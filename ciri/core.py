@@ -467,14 +467,15 @@ class Schema(AbstractSchema):
                     except FieldValidationError as field_exc:
                         errors[str_key] = field_exc.error
                         invalid = True
-                    if post_validate:
-                        for validator in post_validate.get(key, []):
-                            try:
-                                klass_value = valid[key] = validator(valid[key], schema=parent, field=field)
-                            except FieldValidationError as field_exc:
-                                errors[str_key] = field_exc.error
-                                invalid = True
-                                break
+
+                if post_validate:
+                    for validator in post_validate.get(key, []):
+                        try:
+                            klass_value = valid[key] = validator(valid[key], schema=parent, field=field)
+                        except FieldValidationError as field_exc:
+                            errors[str_key] = field_exc.error
+                            invalid = True
+                            break
 
                 if errors and halt_on_error:
                     break
@@ -503,14 +504,14 @@ class Schema(AbstractSchema):
                 else:
                     valid[name] = field.serialize(valid.get(key, klass_value))
 
-                    # run post serialization functions
-                    if post_serialize:
-                        for func in post_serialize.get(key, []):
-                            valid[name] = func(klass_value, schema=parent, field=field)
-
                     # remove old keys if the serializer renames the field
                     if name != key:
                         del valid[key]
+
+                # run post serialization functions
+                if post_serialize:
+                    for func in post_serialize.get(key, []):
+                        valid[name] = func(klass_value, schema=parent, field=field)
 
             if not invalid and do_deserialize:
 
@@ -531,16 +532,18 @@ class Schema(AbstractSchema):
                     klass_value = valid[key] = None
                 else:
                     klass_value = valid[key] = field.deserialize(valid.get(key, klass_value))
-                    # run post deserialization functions
-                    if post_deserialize:
-                        for func in post_deserialize.get(key, []):
-                            klass_value = valid[key] = func(klass_value, schema=parent, field=field)
+
+                # run post deserialization functions
+                if post_deserialize:
+                    for func in post_deserialize.get(key, []):
+                        klass_value = valid[key] = func(klass_value, schema=parent, field=field)
         for e, err in errors.items():
             parent._raw_errors[e] = err
             parent._error_handler.add(e, err)
         return (errors, valid)
 
-    def validate(self, data=None, halt_on_error=False, key_cache=None, exclude=[], whitelist=[]):
+    def validate(self, data=None, halt_on_error=False, key_cache=None,
+                 exclude=[], whitelist=[], tags=[], context=None):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
@@ -549,20 +552,43 @@ class Schema(AbstractSchema):
             'halt_on_error': halt_on_error
         }
 
-        if not key_cache:
-            data_keys = []
-            for k in data:
-                if self._fields.get(k):
-                    data_keys.append(k)
-            key_cache = set(self._e + data_keys)
+        if hasattr(self._schema_callables, 'pre_validate'):
+            context = context or self.context
+            for c in getattr(self._schema_callables, 'pre_validate'):
+                data = c(data, schema=self, context=context)
 
-        if whitelist:
-            key_cache = set(whitelist)
+        if not key_cache:
+            if tags:
+                data_keys = []
+                append = data_keys.append
+                fields = self._fields
+                for k in tags:
+                    if k in self._tags:
+                        for t in self._tags[k]:
+                            append(t)
+                elements = set(data_keys)
+                whitelist = []
+            elif not whitelist:
+                data_keys = []
+                append = data_keys.append
+                fields = self._fields
+                for k in data:
+                    if fields.get(k):
+                        append(k)
+                key_cache = set(self._e + data_keys)
+            else:
+                key_cache = set(whitelist)
 
         errors, valid = self._iterate(self._fields, key_cache, data,
                                       self._validation_opts, parent=self,
                                       do_validate=True, exclude=exclude,
-                                      whitelist=whitelist)
+                                      whitelist=whitelist, tags=tags)
+
+        if hasattr(self._schema_callables, 'post_validate'):
+            context = context or self.context
+            for c in getattr(self._schema_callables, 'post_validate'):
+                valid = c(valid, schema=self, context=context)
+
         if self._config.raise_errors and errors:
             raise ValidationError(self)
         return valid
@@ -573,9 +599,8 @@ class Schema(AbstractSchema):
         if hasattr(data, '__dict__'):
             data = vars(data)
 
-        context = context or self.context
-
         if hasattr(self._schema_callables, 'pre_serialize'):
+            context = context or self.context
             for c in getattr(self._schema_callables, 'pre_serialize'):
                 data = c(data, schema=self, context=context)
 
@@ -603,50 +628,94 @@ class Schema(AbstractSchema):
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
                                        do_serialize=True, do_validate=(not skip_validation),
                                        exclude=exclude, whitelist=whitelist, tags=tags)
+
+        if hasattr(self._schema_callables, 'post_serialize'):
+            context = context or self.context
+            for c in getattr(self._schema_callables, 'post_serialize'):
+                output = c(output, schema=self, context=context)
+
         if self._config.raise_errors and errors:
             raise ValidationError(self)
 
         return output
 
-    def deserialize(self, data=None, skip_validation=False):
+    def deserialize(self, data=None, skip_validation=False, exclude=[],
+                    whitelist=[], tags=[], context=None):
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
 
-        data_keys = []
-        append = data_keys.append
-        fields = self._fields
-        for k in data:
-            if fields.get(k):
-                append(k)
+        if hasattr(self._schema_callables, 'pre_deserialize'):
+            context = context or self.context
+            for c in getattr(self._schema_callables, 'pre_deserialize'):
+                data = c(data, schema=self, context=context)
 
-        elements = set(self._e + data_keys)
+        if tags:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in tags:
+                if k in self._tags:
+                    for t in self._tags[k]:
+                        append(t)
+            elements = set(data_keys)
+            whitelist = []
+        elif not whitelist:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in data:
+                if fields.get(k):
+                    append(k)
+            elements = set(self._e + data_keys)
+        else:
+            elements = set(whitelist)
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
-                                       do_deserialize=True, do_validate=(not skip_validation))
+                                       do_deserialize=True, do_validate=(not skip_validation),
+                                       exclude=exclude, whitelist=whitelist, tags=tags)
+
+        if hasattr(self._schema_callables, 'post_deserialize'):
+            context = context or self.context
+            for c in getattr(self._schema_callables, 'post_deserialize'):
+                output = c(output, schema=self, context=context)
 
         if self._config.raise_errors and errors:
             raise ValidationError(self)
 
         return self.__class__(**output)
 
-    def encode(self, data=None, skip_validation=False, skip_serialization=False):
+    def encode(self, data=None, skip_validation=False, skip_serialization=False,
+               exclude=[], whitelist=[], tags=[], context=None):
         self._encode_stream = []
         data = data or self
         if hasattr(data, '__dict__'):
             data = vars(data)
 
-        data_keys = []
-        append = data_keys.append
-        fields = self._fields
-        for k in data:
-            if fields.get(k):
-                append(k)
-
-        elements = set(self._e + data_keys)
+        if tags:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in tags:
+                if k in self._tags:
+                    for t in self._tags[k]:
+                        append(t)
+            elements = set(data_keys)
+            whitelist = []
+        elif not whitelist:
+            data_keys = []
+            append = data_keys.append
+            fields = self._fields
+            for k in data:
+                if fields.get(k):
+                    append(k)
+            elements = set(self._e + data_keys)
+        else:
+            elements = set(whitelist)
 
         errors, output = self._iterate(self._fields, elements, data, self._validation_opts, parent=self,
-                                       do_serialize=(not skip_serialization), do_validate=(not skip_validation))
+                                       do_serialize=(not skip_serialization), do_validate=(not skip_validation),
+                                       exclude=exclude, whitelist=whitelist, tags=tags)
 
         if self._config.raise_errors and errors:
             raise ValidationError(self)
