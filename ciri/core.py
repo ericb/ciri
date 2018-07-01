@@ -691,6 +691,17 @@ class PolySchema(AbstractPolySchema, Schema):
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.serialize(data, *args, **kwargs)
 
+    def validate(self, data=None, *args, **kwargs):
+        ident_key = self.__poly_on__.name
+        data = data or self.__poly_kwargs__ or self
+        if hasattr(data, '__dict__'):
+            data = vars(data)
+        id_ = data.get(ident_key)
+        if not id_:
+            raise SerializationError
+        schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
+        return schema.validate(data, *args, **kwargs)
+
     def encode(self, data=None, *args, **kwargs):
         ident_key = self.__poly_on__.name
         data = data or self.__poly_kwargs__ or self

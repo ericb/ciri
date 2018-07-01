@@ -6,7 +6,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
-from ciri.core import PolySchema as Schema
+from ciri.core import PolySchema as Schema, Schema as StandardSchema
 from ciri.exception import ValidationError
 
 import pytest
@@ -172,3 +172,74 @@ def test_polymorph_deserialize_type(value, expected):
         bar = fields.String(required=True)
 
     assert type(Poly().deserialize(value)).__name__ == expected 
+
+
+def test_list_base_poly_deserialize():
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+
+        class Meta:
+            poly_id = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+
+    class PolyList(StandardSchema):
+
+        polys = fields.List(Poly())
+
+
+    schema = PolyList(polys=[
+        {'type_': 'a', 'foo': 'bar'},
+        {'type_': 'b', 'bar': 'foo'}
+    ])
+
+    poly_list = schema.deserialize()
+
+    types = (type(poly_list.polys[0]), type(poly_list.polys[1]),)
+    assert types == (PolyA, PolyB,)
+
+
+def test_list_poly_deserialize():
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+
+        class Meta:
+            poly_id = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+
+    class PolyList(StandardSchema):
+
+        polys = fields.List(PolyA())
+
+
+    schema = PolyList(polys=[
+        {'type_': 'a', 'foo': 'bar'},
+        {'type_': 'a', 'foo': 'hoo'}
+    ])
+
+    poly_list = schema.deserialize()
+    types = (type(poly_list.polys[0]), type(poly_list.polys[1]),)
+    assert types == (PolyA, PolyA,)
