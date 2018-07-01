@@ -1,5 +1,7 @@
 # PENDING
 
+  * `fields.Schema` now correctly passes validation options
+  * Added updated `validation()` method to PolySchema. fixes issue #3
   * `output_missing` no longer assumes `allow_none` behavior
   * `output_missing` now also checks against field level options
 

@@ -361,7 +361,7 @@ class Schema(Field):
         schema._raw_errors = {}
         schema._error_handler.reset()
         try:
-            return schema.validate(value, **schema._schema._validation_opts)
+            return schema.validate(value, **schema._schema._validation_opts, exclude=self.exclude, whitelist=self.whitelist)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 

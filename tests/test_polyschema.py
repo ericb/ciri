@@ -243,3 +243,43 @@ def test_list_poly_deserialize():
     poly_list = schema.deserialize()
     types = (type(poly_list.polys[0]), type(poly_list.polys[1]),)
     assert types == (PolyA, PolyA,)
+
+
+def test_list_poly_options():
+    class Poly(Schema):
+
+        type_ = fields.String(required=True)
+        hello = fields.String()
+
+        __poly_on__ = type_
+
+    class PolyA(Poly):
+
+        class Meta:
+            poly_id = 'a'
+
+        foo = fields.String(required=True)
+        footest = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+        bartest = fields.String(required=True)
+
+
+    class PolyList(StandardSchema):
+
+        polys = fields.List(fields.Schema(Poly, exclude=['footest', 'bartest']))
+
+
+    #PolyA(type_='a', foo='bar'),
+    #PolyB(type_='b', bar='foo')
+
+    schema = PolyList(polys=[
+        {'type_': 'a', 'foo': 'bar'},
+        {'type_': 'b', 'bar': 'foo'},
+    ])
+
+    data = schema.serialize() 
+    assert data == {'polys': [{'type_': 'a', 'foo': 'bar'}, {'type_': 'b', 'bar': 'foo'}]}
