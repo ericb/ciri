@@ -396,8 +396,16 @@ class Schema(AbstractSchema):
 
             if key in parent._subfields:
                 if klass_value is None or missing:
-                    errors[key] = FieldError(parent._subfields[key], 'invalid')
-                    continue
+                    pfield = parent._subfields[key]  # reference the actual schema field
+                    if pfield.allow_none is UseSchemaOption and not allow_none:
+                        errors[key] = FieldError(parent._subfields[key], 'invalid')
+                        continue
+                    elif pfield.allow_none is False:
+                        errors[key] = FieldError(parent._subfields[key], 'invalid')
+                        continue
+                    else:
+                        klass_value = valid[key] = None
+                        continue
                 data_keys = []
                 sub = klass_value
                 if hasattr(klass_value, '__dict__'):
