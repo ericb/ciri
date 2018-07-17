@@ -224,6 +224,13 @@ def test_field_serialization_name():
     assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
 
 
+def test_field_serialization_load_key():
+    class S(Schema):
+        name = fields.String(load='testing', name='first_name')
+    schema = S()
+    assert schema.serialize({'testing': 'Tester'}) == {'first_name': 'Tester'}
+
+
 def test_simple_field_pre_validate():
     def not_fiona(value, **kwargs):
         if value == 'fiona':

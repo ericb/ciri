@@ -77,10 +77,11 @@ class Field(AbstractField):
                  '_messages', 'message', '_schema', 'validators',
                  'pre_validate', 'pre_serialize', 'pre_deserialize',
                  'post_validate', 'post_serialize', 'post_deserialize',
-                 'missing_output_value', 'tags']
+                 'missing_output_value', 'tags', 'load']
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
+        self.load = kwargs.get('load', None)
         self.required = kwargs.get('required', False)
         self.default = kwargs.get('default', SchemaFieldDefault)
         self.allow_none = kwargs.get('allow_none', UseSchemaOption)

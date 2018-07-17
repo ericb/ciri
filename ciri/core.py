@@ -153,6 +153,7 @@ class ABCSchema(ABCMeta):
         klass._elements = {}
         klass._subfields = {}
         klass._pending_schemas = {}
+        klass._load_keys = {}
         klass._schema_callables = SchemaCallableObject()
         klass._field_callables = FieldCallableObject()
         klass._config = DEFAULT_SCHEMA_OPTIONS
@@ -297,11 +298,15 @@ class ABCSchema(ABCMeta):
                         self._pending_schemas[k] = v
                     self._subfields[k] = v
                     self._elements[k] = True
+                    if v.load:
+                        self._load_keys[v.load] = k
                 else:
                     if v.required or (v.default is not SchemaFieldDefault):
                         self._elements[k] = True
                     elif v.output_missing is True or (v.output_missing is UseSchemaOption and self._config.output_missing):
                         self._elements[k] = True
+                    if v.load:
+                        self._load_keys[v.load] = k
                     # update tags
                     for tag in v.tags:
                         if not self._tags.get(tag):
@@ -378,9 +383,12 @@ class Schema(AbstractSchema):
             if key in exclude:
                 continue
             str_key = str(key)
+            load_key = key
+            if key not in self._subfields and key not in self._pending_schemas:
+                load_key = getattr(fields[key], 'load', None) or key
 
             # field value
-            klass_value = data.get(key, SchemaFieldMissing)
+            klass_value = data.get(load_key, SchemaFieldMissing)
             invalid = False
 
             field = fields[key]
@@ -565,11 +573,11 @@ class Schema(AbstractSchema):
             for c in getattr(self._schema_callables, 'pre_validate'):
                 data = c(data, schema=self, context=context)
 
+        data_keys = []
+        append = data_keys.append
+        fields = self._fields
         if not key_cache:
             if tags:
-                data_keys = []
-                append = data_keys.append
-                fields = self._fields
                 for k in tags:
                     if k in self._tags:
                         for t in self._tags[k]:
@@ -577,12 +585,11 @@ class Schema(AbstractSchema):
                 elements = set(data_keys)
                 whitelist = []
             elif not whitelist:
-                data_keys = []
-                append = data_keys.append
-                fields = self._fields
                 for k in data:
                     if fields.get(k):
                         append(k)
+                    elif self._load_keys.get(k):
+                        append(self._load_keys.get(k))
                 key_cache = set(self._e + data_keys)
             else:
                 key_cache = set(whitelist)
@@ -612,10 +619,11 @@ class Schema(AbstractSchema):
             for c in getattr(self._schema_callables, 'pre_serialize'):
                 data = c(data, schema=self, context=context)
 
+        fields = self._fields
+        data_keys = []
+        append = data_keys.append
+
         if tags:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in tags:
                 if k in self._tags:
                     for t in self._tags[k]:
@@ -623,12 +631,11 @@ class Schema(AbstractSchema):
             elements = set(data_keys)
             whitelist = []
         elif not whitelist:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in data:
                 if fields.get(k):
                     append(k)
+                elif self._load_keys.get(k):
+                    append(self._load_keys.get(k))
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)
@@ -658,10 +665,10 @@ class Schema(AbstractSchema):
             for c in getattr(self._schema_callables, 'pre_deserialize'):
                 data = c(data, schema=self, context=context)
 
+        data_keys = []
+        append = data_keys.append
+        fields = self._fields
         if tags:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in tags:
                 if k in self._tags:
                     for t in self._tags[k]:
@@ -669,12 +676,11 @@ class Schema(AbstractSchema):
             elements = set(data_keys)
             whitelist = []
         elif not whitelist:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in data:
                 if fields.get(k):
                     append(k)
+                elif self._load_keys.get(k):
+                    append(self._load_keys.get(k))
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)
@@ -700,10 +706,10 @@ class Schema(AbstractSchema):
         if hasattr(data, '__dict__'):
             data = vars(data)
 
+        data_keys = []
+        append = data_keys.append
+        fields = self._fields
         if tags:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in tags:
                 if k in self._tags:
                     for t in self._tags[k]:
@@ -711,12 +717,11 @@ class Schema(AbstractSchema):
             elements = set(data_keys)
             whitelist = []
         elif not whitelist:
-            data_keys = []
-            append = data_keys.append
-            fields = self._fields
             for k in data:
                 if fields.get(k):
                     append(k)
+                elif self._load_keys.get(k):
+                    append(self._load_keys.get(k))
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)
