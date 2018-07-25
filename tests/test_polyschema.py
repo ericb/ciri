@@ -283,3 +283,75 @@ def test_list_poly_options():
 
     data = schema.serialize() 
     assert data == {'polys': [{'type_': 'a', 'foo': 'bar'}, {'type_': 'b', 'bar': 'foo'}]}
+
+
+def test_poly_instance_mapping():
+    class PolyTest1(Schema):
+
+        type = fields.String(required=True)
+
+        __poly_on__ = type
+
+    class PolyA(PolyTest1):
+
+        class Meta:
+            poly_id = 'a'
+
+        foo = fields.String(required=True)
+
+    class PolyB(PolyTest1):
+        __poly_id__ = 'b'
+
+        bar = fields.String(required=True)
+
+
+    class PolyTest2(Schema):
+
+        version = fields.Integer(required=True)
+
+        __poly_on__ = version
+
+
+    class PolyC(PolyTest2):
+
+        class Meta:
+            poly_id = 'c'
+
+        foo = fields.String(required=True)
+
+    class PolyD(PolyTest2):
+
+        class Meta:
+            poly_id = 'd'
+
+        bar = fields.String(required=True)
+        
+
+
+
+    a = {'type': 'a', 'foo': 'bar'}
+    b = {'type': 'b', 'bar': 'foo'}
+    c = {'version': 'c', 'foo': 'bar'}
+    d = {'version': 'd', 'bar': 'foo'}
+
+    sa = PolyTest1.polymorph(**a)
+    sb = PolyTest1.polymorph(**b)
+    sc = PolyTest2.polymorph(**c)
+    sd = PolyTest2.polymorph(**d)
+
+    data = {
+        'sa': type(sa),
+        'sb': type(sb),
+        'sc': type(sc),
+        'sd': type(sd),
+    }
+
+
+    expected = {
+        'sa': PolyA,
+        'sb': PolyB,
+        'sc': PolyC,
+        'sd': PolyD,
+    }
+
+    assert data == expected 

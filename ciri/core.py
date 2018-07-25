@@ -242,10 +242,8 @@ class ABCSchema(ABCMeta):
         for base in bases:
             if issubclass(base, AbstractPolySchema):
                 if '__poly_on__' in attrs:
-                    base.__poly_mapping__ = {}
-                    base.__poly_inherit__ = [x if not x.startswith('__poly') else None for x in attrs]
-                if '__poly_id__' in attrs:
-                    base.__poly_parent__ = base
+                    self.__poly_mapping__ = {}
+                    self.__poly_inherit__ = [x if not x.startswith('__poly') else None for x in attrs]
 
     def handle_config(self):
         """Handles the schema options magic method"""

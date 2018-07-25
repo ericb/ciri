@@ -356,9 +356,9 @@ class Schema(Field):
         return schema.__class__(**value)
 
     def validate(self, value):
+        schema = self.cached or self._get_schema()
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema = self.cached or self._get_schema()
         schema._raw_errors = {}
         schema._error_handler.reset()
         try:
@@ -403,9 +403,9 @@ class SelfReference(Field):
         return schema.__class__(**value)
 
     def validate(self, value):
+        schema = self.cached or self._get_schema()
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema = self.cached or self._get_schema()
         schema._raw_errors = {}
         schema._error_handler.reset()
         try:
