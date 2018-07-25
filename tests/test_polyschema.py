@@ -355,3 +355,31 @@ def test_poly_instance_mapping():
     }
 
     assert data == expected 
+
+
+def test_poly_sub_serialization():
+
+    class Poly(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+
+
+    class PolyA(Poly):
+        class Meta:
+            poly_id = 'a'
+        foo = fields.String(required=True)
+
+    class PolyB(Poly):
+        __poly_id__ = 'b'
+        bar = fields.String(required=True)
+
+    
+    class Sub(StandardSchema):
+        
+        poly = fields.Schema(Poly)
+
+
+    a = Sub().serialize({'poly': {'type': 'a', 'foo': 'bar'}})
+    b = Sub().serialize({'poly': {'type': 'b', 'bar': 'foo'}})
+
+    assert {'a': a, 'b': b} == {'a': {'poly': {'type': 'a', 'foo': 'bar'}}, 'b': {'poly': {'type': 'b', 'bar': 'foo'}}}

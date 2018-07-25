@@ -401,6 +401,13 @@ class Schema(AbstractSchema):
                 parent._pending_schemas.pop(key)
 
             if key in parent._subfields:
+                if isinstance(field, AbstractPolySchema):
+                    try:
+                        polykey = field.getpolyname()
+                        field = field.getpoly(klass_value[polykey])()
+                    except Exception:
+                        errors[key] = FieldError(parent._subfields[key], 'invalid_polykey', errors={})
+                        continue
                 if klass_value is None or missing:
                     pfield = parent._subfields[key]  # reference the actual schema field
                     if pfield.allow_none is UseSchemaOption and not allow_none:
@@ -794,8 +801,18 @@ class PolySchema(AbstractPolySchema, Schema):
         return schema.encode(data, *args, **kwargs)
 
     @classmethod
+    def getpolyname(cls):
+        return cls.__poly_on__.name
+
+    @classmethod
+    def getpoly(cls, key):
+        return cls.__poly_mapping__.get(key, None)
+
+    @classmethod
     def polymorph(cls, *args, **kwargs):
         ident_key = cls.__poly_on__.name
         id_ = kwargs.get(ident_key)
-        schema = cls.__poly_mapping__.get(id_)(*args, **kwargs)
-        return schema
+        schema = cls.getpoly(id_)
+        if not schema:
+            raise SerializationError
+        return schema(*args, **kwargs)

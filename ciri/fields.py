@@ -25,7 +25,8 @@ class FieldErrorMessages(object):
         self._messages = {
             'invalid': 'Invalid Field',
             'required': 'Required Field',
-            'invalid_mapping': 'Field is not a valid Mapping'
+            'invalid_mapping': 'Field is not a valid Mapping',
+            'invalid_polykey': 'The polymorphic key could not be found'
         }
         self._messages.update(kwargs)
 
