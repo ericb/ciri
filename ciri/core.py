@@ -401,13 +401,14 @@ class Schema(AbstractSchema):
                 parent._pending_schemas.pop(key)
 
             if key in parent._subfields:
-                if isinstance(field, AbstractPolySchema):
-                    try:
-                        polykey = field.getpolyname()
-                        field = field.getpoly(klass_value[polykey])()
-                    except Exception:
-                        errors[key] = FieldError(parent._subfields[key], 'invalid_polykey', errors={})
-                        continue
+                if klass_value is not None and not missing:
+                    if isinstance(field, AbstractPolySchema):
+                        try:
+                            polykey = field.getpolyname()
+                            field = field.getpoly(klass_value[polykey])()
+                        except Exception:
+                            errors[key] = FieldError(parent._subfields[key], 'invalid_polykey')
+                            continue
                 if klass_value is None or missing:
                     pfield = parent._subfields[key]  # reference the actual schema field
                     if pfield.allow_none is UseSchemaOption and not allow_none:

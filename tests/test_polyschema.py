@@ -383,3 +383,52 @@ def test_poly_sub_serialization():
     b = Sub().serialize({'poly': {'type': 'b', 'bar': 'foo'}})
 
     assert {'a': a, 'b': b} == {'a': {'poly': {'type': 'a', 'foo': 'bar'}}, 'b': {'poly': {'type': 'b', 'bar': 'foo'}}}
+
+
+def test_poly_sub_serialization_missing():
+
+    class Poly(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+
+
+    class PolyA(Poly):
+        class Meta:
+            poly_id = 'a'
+        foo = fields.String(required=True)
+
+    
+    class Sub(StandardSchema):
+        
+        poly = fields.Schema(Poly, allow_none=True)
+
+
+    a = Sub().serialize({})
+
+    assert {} == {}
+
+
+def test_poly_sub_serialization_invalid():
+
+    class Poly(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+
+
+    class PolyA(Poly):
+        class Meta:
+            poly_id = 'a'
+        foo = fields.String(required=True)
+
+    
+    class Sub(StandardSchema):
+        
+        poly = fields.Schema(Poly)
+
+    
+    errors = {'poly': {'msg': fields.Schema(Poly).message.invalid_polykey}}
+
+    schema = Sub(poly={'a': 'b'})
+    with pytest.raises(ValidationError):
+        schema.serialize({})
+    assert schema.errors == errors
