@@ -223,6 +223,13 @@ def test_field_serialization_name():
     schema = S()
     assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
 
+def test_field_serialization_name_missing():
+    class S(Schema):
+        class Meta:
+           options = SchemaOptions(output_missing=True)
+        name = fields.String(name='first_name')
+    schema = S()
+    assert schema.serialize({'notname': 'Tester'}) == {'first_name': None}
 
 def test_field_serialization_load_key():
     class S(Schema):

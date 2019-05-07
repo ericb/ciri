@@ -516,7 +516,7 @@ class Schema(AbstractSchema):
 
                 # if it's allowed, and the field is missing, set the value to None
                 if missing and klass_value == field.missing_output_value:
-                    klass_value = valid[key] = field.missing_output_value
+                    klass_value = valid[name] = field.missing_output_value
                 elif missing and allow_none and field.allow_none is UseSchemaOption:
                     valid[name] = None
                 elif missing and field.allow_none:
