@@ -502,3 +502,35 @@ class UUID(Field):
         raise FieldValidationError(FieldError(self, 'invalid'))
 
 
+
+class Child(Field):
+
+    def new(self, field, *args, path=None, **kwargs):
+        self.field = field
+        self.path = path
+        self.cache_value = SchemaFieldMissing
+
+    def _get_child_value(self, value):
+        if self.cache_value is SchemaFieldMissing:
+            ctx = val = value
+            try:
+                for part in self.path.split('.'):
+                    ctx = ctx.get(part, {})
+            except AttributeError:
+                val = {}
+            try:
+                val = ctx.get(self.field.name)
+            except AttributeError:
+                val = None
+            self.cache_value = val
+        return self.cache_value
+
+    def serialize(self, value, **kwargs):
+        return self.field.serialize(self._get_child_value(value))
+
+    def deserialize(self, value):
+        return self.field.deserialize(self._get_child_value(value))
+
+    def validate(self, value):
+        return self.field.validate(self._get_child_value(value))
+

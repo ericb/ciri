@@ -678,3 +678,15 @@ def test_schema_serialize_context():
     schema.context = {'a': 'a'}
     ctx = {'a': 'd', 'b': 'e', 'c': 'f'}
     assert schema.serialize(context=ctx) == {'a': 'd', 'b': 'e', 'c': 'f'}
+
+def test_schema_elements_have_load():
+    class S(Schema):
+        name = fields.Child(fields.String(name='title'), load='nest')
+    schema = S()
+    assert schema.serialize({'foo': 'bar', 'nest': {'title': 'Hello World'}}) == {'name': 'Hello World'}
+
+def test_schema_elements_have_load_with_path():
+    class S(Schema):
+        name = fields.Child(fields.String(name='title'), path='b.c', load='a')
+    schema = S()
+    assert schema.serialize({'a': {'b': {'c': {'title': 'Hello World'}}}}) == {'name': 'Hello World'}
