@@ -432,3 +432,20 @@ def test_poly_sub_serialization_invalid():
     with pytest.raises(ValidationError):
         schema.serialize({})
     assert schema.errors == errors
+
+
+def test_poly_deserialize_with_dynamic_load():
+    class S(Schema):
+        first_name = fields.String()
+        type = fields.String(load='field_type', name='ftype', required=True)
+        __poly_on__ = type
+
+    class SUser(S):
+        class Meta:
+            poly_id = 'user'
+        last_name = fields.String()
+
+    expected = {'first_name': 'foo', 'last_name': 'bar', 'field_type': 'user'}
+    schema = S()
+    s = schema.deserialize(expected)
+    assert s == SUser(type='user', **expected)

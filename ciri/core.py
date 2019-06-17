@@ -377,13 +377,15 @@ class Schema(AbstractSchema):
         if whitelist:
             elements = whitelist
 
+
         for key in elements:
             if key in exclude:
                 continue
             str_key = str(key)
             load_key = key
             if key not in self._subfields and key not in self._pending_schemas:
-                load_key = getattr(fields[key], 'load', None) or key
+                if do_deserialize:
+                    load_key = getattr(fields[key], 'load', None) or key
 
             # field value
             klass_value = data.get(load_key, SchemaFieldMissing)
@@ -759,6 +761,8 @@ class PolySchema(AbstractPolySchema, Schema):
 
     def deserialize(self, data=None, *args, **kwargs):
         ident_key = self.__poly_on__.name
+        if self.__poly_on__.load:
+            ident_key = self.__poly_on__.load
         data = data or self.__poly_kwargs__ or self
         if hasattr(data, '__dict__'):
             data = vars(data)

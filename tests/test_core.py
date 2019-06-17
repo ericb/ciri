@@ -235,7 +235,7 @@ def test_field_serialization_load_key():
     class S(Schema):
         name = fields.String(load='testing', name='first_name')
     schema = S()
-    assert schema.serialize({'testing': 'Tester'}) == {'first_name': 'Tester'}
+    assert schema.serialize({'name': 'Tester'}) == {'first_name': 'Tester'}
 
 
 def test_simple_field_pre_validate():
@@ -683,10 +683,20 @@ def test_schema_elements_have_load():
     class S(Schema):
         name = fields.Child(fields.String(name='title'), load='nest')
     schema = S()
-    assert schema.serialize({'foo': 'bar', 'nest': {'title': 'Hello World'}}) == {'name': 'Hello World'}
+    assert schema.deserialize({'foo': 'bar', 'nest': {'title': 'Hello World'}}).serialize() == {'name': 'Hello World'}
 
 def test_schema_elements_have_load_with_path():
     class S(Schema):
         name = fields.Child(fields.String(name='title'), path='b.c', load='a')
     schema = S()
-    assert schema.serialize({'a': {'b': {'c': {'title': 'Hello World'}}}}) == {'name': 'Hello World'}
+    assert schema.serialize({'name': {'b': {'c': {'title': 'Hello World'}}}}) == {'name': 'Hello World'}
+
+def test_deserialize_with_load():
+    class S(Schema):
+        first_name = fields.String(load='first')
+        last_name = fields.String()
+
+    schema = S()
+    s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
+    assert s.first_name == 'foo bar'
+
