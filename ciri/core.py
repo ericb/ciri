@@ -424,19 +424,17 @@ class Schema(AbstractSchema):
                         continue
                 data_keys = []
                 sub = klass_value
-                if hasattr(klass_value, '__dict__'):
-                    sub = vars(klass_value)
-                for k in sub:  # check the subfield elements to iterate
-                    if field._fields.get(k):
-                        data_keys.append(k)
-                key_cache = set(field._e + data_keys)
-                suberrors, valid[key] = self._iterate(field._fields, key_cache, klass_value, validation_opts,
-                                                      parent=field, do_serialize=do_serialize, do_validate=do_validate,
-                                                      do_deserialize=do_deserialize, exclude=parent._subfields[key].exclude,
-                                                      whitelist=parent._subfields[key].whitelist)
-                klass_value = valid[key]
-                if suberrors:
-                    errors[key] = FieldError(parent._subfields[key], 'invalid', errors=suberrors)
+                try:
+                    if do_validate:
+                        klass_value = valid[key] = parent._subfields[key].validate(sub)
+                    if do_serialize:
+                        klass_value = valid[key] = parent._subfields[key].serialize(sub)
+                    if do_deserialize:
+                        klass_value = valid[key] = parent._subfields[key].deserialize(sub)
+                except ValidationError as ve:
+                    errors[key] = FieldError(parent._subfields[key], 'invalid', errors=field._raw_errors)
+                if errors and halt_on_error:
+                    break
                 continue
 
             # if the field is missing, set the default value

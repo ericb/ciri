@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.fields import Boolean, String, List, Schema as SubSchema
+from ciri.fields import Boolean, String, List, Schema as SubSchema, SelfReference
 from ciri.core import Schema
 from ciri.exception import ValidationError
 
@@ -81,3 +81,68 @@ def test_subschema_pre_serializer():
 
     schema = Root()
     assert schema.serialize({'node': {'label': 'foo bar', 'id': 'foo bar'}}) == {'enabled': False, 'node': {'label': 'foo bar', 'id': 'FOO_BAR'}}
+
+
+def test_subschema_as_none():
+    class Node(Schema):
+        label = String(required=True)
+        id = String()
+
+    class Root(Schema):
+        node = SubSchema(Node, allow_none=True)
+        enabled = Boolean(default=False)
+
+    schema = Root()
+    assert schema.serialize({'node': None}) == {'enabled': False, 'node': None}
+
+def test_subschema_deserialize_as_none():
+    class Node(Schema):
+        pass
+
+    class Root(Schema):
+        node = SubSchema(Node, allow_none=True)
+        enabled = Boolean(default=False)
+
+    schema = Root()
+    assert schema.deserialize({'node': None}) == Root(node=None)
+
+def test_subrecursive_serialize_self():
+
+    class Node(Schema):
+        id = String(required=True)
+        node = SelfReference()
+
+    class Root(Schema):
+        node = SubSchema(Node, allow_none=True)
+        enabled = Boolean(default=False)
+
+    schema = Root()
+    assert schema.serialize({'node': {'id': '1', 'node': {'id': '2', 'node': None}}}) == Root(node=Node(id='1', node=Node(id='2', node=None))).serialize()
+
+
+def test_subrecursive_deserialize_self():
+
+    class Node(Schema):
+        id = String(required=True)
+        node = SelfReference()
+
+    class Root(Schema):
+        node = SubSchema(Node, allow_none=True)
+        enabled = Boolean(default=False)
+
+    schema = Root()
+    assert schema.deserialize({'node': {'id': '1', 'node': {'id': '2', 'node': None}}}) == Root(node=Node(id='1', node=Node(id='2', node=None)))
+
+
+def test_subschema_as_object():
+    class Node(Schema):
+        id = String(required=True)
+        label = String()
+
+    class Root(Schema):
+        node = SubSchema(Node, allow_none=True)
+        enabled = Boolean(default=False)
+
+    root = Root().deserialize({'node': {'id': '1', 'label': 'Testing'}, 'enabled': False})
+    assert root.node.id == '1'
+

@@ -14,6 +14,7 @@
   * `fields.Schema` now correctly passes validation options
   * `fields.Schema` now tracks field level options
   * `fields.Schema` can now serialize polymorphic schemas 
+  * `fields.Schema` now deserializes as objects
   * `output_missing` no longer assumes `allow_none` behavior
   * `output_missing` now also checks against field level options
 
