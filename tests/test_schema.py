@@ -3,7 +3,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
-from ciri.fields import Boolean, String, List, Schema as SubSchema, SelfReference
+from ciri.fields import Boolean, Float, String, List, Schema as SubSchema, SelfReference
 from ciri.core import Schema
 from ciri.exception import ValidationError
 
@@ -145,4 +145,48 @@ def test_subschema_as_object():
 
     root = Root().deserialize({'node': {'id': '1', 'label': 'Testing'}, 'enabled': False})
     assert root.node.id == '1'
+
+def test_list_subschema_as_object():
+    class Stuff(Schema):
+        id = String(required=True)
+        label = String()
+
+    class Node(Schema):
+        id = String(required=True)
+        label = String()
+        nodes = List(SubSchema(Stuff, allow_none=True))
+
+    class Root(Schema):
+        nodes = List(SubSchema(Node, allow_none=True))
+        enabled = Boolean(default=False)
+
+    root = Root().deserialize({'nodes': [{'id': '1', 'label': 'Testing', 'nodes': [{'id': '2', 'label': 'Hi'}] }], 'enabled': False})
+    assert root.nodes[0].id == '1'
+
+
+def test_subschema_list_of_sub_as_objects():
+
+    class CarBrand(Schema):
+        label = String(required=True)
+        desc = String(required=True)
+
+    class DealershipCarBrands(Schema):
+        n_brands = Float(required=True)
+        brands = List(SubSchema(CarBrand), required=True)
+
+    class Dealership(Schema):
+        info = SubSchema(DealershipCarBrands, required=True)
+
+    car_dict = {
+        "info": {
+            "n_brands": 2,
+            "brands": [
+                { "label": "TSLA", "desc": "Tesla" },
+                { "label": "F", "desc": "Ford" }
+            ]
+        }
+    }
+
+    dealership = Dealership().deserialize(car_dict)
+    assert dealership.info.brands[1].label == 'F'
 

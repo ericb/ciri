@@ -354,7 +354,7 @@ class Schema(Field):
 
     def deserialize(self, value):
         schema = self.cached or self._get_schema()
-        return schema.__class__(**value)
+        return schema.deserialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def validate(self, value):
         schema = self.cached or self._get_schema()
