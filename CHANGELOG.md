@@ -17,6 +17,7 @@
   * `fields.Schema` now deserializes as objects
   * `output_missing` no longer assumes `allow_none` behavior
   * `output_missing` now also checks against field level options
+  * `allow_none` is now respected with required fields
 
 
 # 0.2.1

@@ -30,11 +30,18 @@ def test_required_field():
 
 def test_required_field_with_allowed_none():
     class S(Schema):
-        name = fields.String(required=True, allowed_none=True)
+        name = fields.String(required=True, allow_none=False)
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'name': None})
     assert schema._raw_errors['name'].message == fields.String().message.required
+
+
+def test_required_field_with_allowed_none_as_true():
+    class S(Schema):
+        name = fields.String(required=True, allow_none=True)
+    schema = S()
+    assert schema.serialize({'name': None}) == {'name': None}
 
 
 def test_allow_none_field():

@@ -393,9 +393,6 @@ class Schema(AbstractSchema):
 
             field = fields[key]
             missing = (klass_value is SchemaFieldMissing)
-            if not missing:
-                # required overrides
-                missing = (key not in self._subfields and field.required and klass_value == field.missing_output_value)
 
             # if we encounter a schema field, cache it
             if key in parent._pending_schemas:
@@ -475,6 +472,9 @@ class Schema(AbstractSchema):
                     invalid = True
                 elif missing and field.allow_none is True:
                     pass
+                elif not missing and field.required is True and field.allow_none is False and klass_value == None:
+                    errors[str_key] = FieldError(fields[key], 'required')
+                    invalid = True
                 elif klass_value == field.missing_output_value:
                     pass
                 elif (missing or klass_value is None) and field.allow_none is False:
