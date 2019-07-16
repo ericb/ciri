@@ -404,6 +404,8 @@ class Schema(AbstractSchema):
                     if isinstance(field, AbstractPolySchema):
                         try:
                             polykey = field.getpolyname()
+                            if hasattr(klass_value, '__dict__'):
+                                klass_value = vars(klass_value)
                             field = field.getpoly(klass_value[polykey])()
                         except Exception:
                             errors[key] = FieldError(parent._subfields[key], 'invalid_polykey')
@@ -421,17 +423,21 @@ class Schema(AbstractSchema):
                         continue
                 data_keys = []
                 sub = klass_value
+                if hasattr(klass_value, '__dict__'):
+                    sub = vars(klass_value)
+                for k in sub:  # check the subfield elements to iterate
+                    if field._fields.get(k):
+                        data_keys.append(k)
+                key_cache = set(field._e + data_keys)
                 try:
                     if do_validate:
-                        klass_value = valid[key] = parent._subfields[key].validate(sub)
+                        sub = klass_value = valid[key] = parent._subfields[key].validate(sub)
                     if do_serialize:
-                        klass_value = valid[key] = parent._subfields[key].serialize(sub)
+                        sub = klass_value = valid[key] = parent._subfields[key].serialize(sub)
                     if do_deserialize:
-                        klass_value = valid[key] = parent._subfields[key].deserialize(sub)
-                except ValidationError as ve:
+                        sub = klass_value = valid[key] = parent._subfields[key].deserialize(sub)
+                except ValidationError as _e:
                     errors[key] = FieldError(parent._subfields[key], 'invalid', errors=field._raw_errors)
-                if errors and halt_on_error:
-                    break
                 continue
 
             # if the field is missing, set the default value

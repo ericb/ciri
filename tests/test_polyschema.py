@@ -449,3 +449,57 @@ def test_poly_deserialize_with_dynamic_load():
     schema = S()
     s = schema.deserialize(expected)
     assert s == SUser(type='user', **expected)
+
+
+def test_poly_sub_deserialization_on_sub_schema():
+    carJSON = json.dumps({
+        "info": {
+            "n_brands": 2,
+            "brands": [
+                { "label": "TSLA", "desc": "Tesla" },
+                { "label": "F", "desc": "Ford" }
+            ]
+        }
+    })
+
+    class CarBrand(StandardSchema):
+        label = fields.String(required=True)
+        desc = fields.String(required=True)
+
+    class DealershipCarBrands(StandardSchema):
+        n_brands = fields.Float(required=True)
+        brands = fields.List(CarBrand(), required=True)
+
+    class Dealership(StandardSchema):
+        info = fields.Schema(DealershipCarBrands, required=True)
+
+    dealer = Dealership()
+    dic = dealer.deserialize(json.loads(carJSON))
+    assert isinstance(dic.info.brands[0], CarBrand)
+
+def test_poly_sub_serialization_on_sub_schema():
+
+    class TestSchema2(Schema):
+        sub_type = fields.String(required=True)
+        __poly_on__ = sub_type
+
+    class TestSchema1(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+        sub_schema = fields.Schema(TestSchema2, required=True)
+
+    class TestSchema2a(TestSchema2):
+        __poly_id__ = 'sub_type'
+        test = fields.String()
+
+    class TestSchema1a(TestSchema1):
+        __poly_id__ = 'type'
+        test = fields.String()
+
+    test_input = {'sub_schema': { 'sub_type': 'sub_type', 'test': 'a' }, 'type': 'type', 'test': 'b' }
+
+    result = TestSchema1a().deserialize(test_input)
+
+    s = TestSchema1a().serialize(result)
+
+    assert s == test_input

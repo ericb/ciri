@@ -30,4 +30,5 @@ def test_complex_json_encode():
         node = fields.Schema(Node, required=True)
 
     schema = Root(node=Node(label='testing', sub=S(name='bob')))
-    assert json.loads(schema.encode()) == json.loads('{"node": {"label": "testing", "sub": {"name": "bob"}}}')
+    encoded = schema.encode()
+    assert json.loads(encoded) == json.loads('{"node": {"label": "testing", "sub": {"name": "bob"}}}')
