@@ -217,7 +217,10 @@ class ABCSchema(ABCMeta):
                     newattrs = dict((x, getattr(base, x, None)) for x in props)
                     for k, v in newattrs.items():
                         if callable(v):
-                            newattrs[k] = v.__get__(cls, None)
+                            if type(v) is not type:
+                                newattrs[k] = v.__get__(cls, None)
+                            else:
+                                newattrs[k] = v
                     newattrs.update(attrs)
                     attrs = newattrs
                     attrs['__poly_parent__'] = base

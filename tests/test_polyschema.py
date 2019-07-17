@@ -6,7 +6,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
-from ciri.core import PolySchema as Schema, Schema as StandardSchema
+from ciri.core import PolySchema as Schema, Schema as StandardSchema, SchemaOptions
 from ciri.exception import ValidationError
 
 import pytest
@@ -503,3 +503,23 @@ def test_poly_sub_serialization_on_sub_schema():
     s = TestSchema1a().serialize(result)
 
     assert s == test_input
+
+
+def test_polyschema_with_meta_options():
+    class S(Schema):
+
+        class Meta:
+            options = SchemaOptions(output_missing=True)
+
+        first_name = fields.String()
+        type = fields.String(load='field_type', name='ftype', required=True)
+        __poly_on__ = type
+
+    class SUser(S):
+        __poly_id__ = 'user'
+        last_name = fields.String()
+
+    expected = {'first_name': 'foo', 'field_type': 'user'}
+    schema = S()
+    s = schema.deserialize(expected)
+    assert s.serialize() == SUser(type='user', **expected).serialize()
