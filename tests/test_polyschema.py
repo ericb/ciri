@@ -7,7 +7,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
 from ciri.core import PolySchema as Schema, Schema as StandardSchema, SchemaOptions
-from ciri.exception import ValidationError
+from ciri.exception import ValidationError, SerializationError
 
 import pytest
 
@@ -523,3 +523,58 @@ def test_polyschema_with_meta_options():
     schema = S()
     s = schema.deserialize(expected)
     assert s.serialize() == SUser(type='user', **expected).serialize()
+
+
+@pytest.mark.parametrize("test_input", [
+    {
+        'sub_schema': { 'sub_type': 'sub_type', 'test': 'a' }, 
+        'test': 'b'
+    }
+])
+def test_poly_missing_key(test_input):
+    class TestSchema2(Schema):
+        sub_type = fields.String(required=True)
+        __poly_on__ = sub_type
+    class TestSchema2a(TestSchema2): 
+        __poly_id__ = 'sub_type'
+        test = fields.String(output_missing=False)
+    class TestSchema1(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+        sub_schema = fields.Schema(TestSchema2, required=True)
+    class TestSchema1a(TestSchema1): 
+        __poly_id__ = 'type'
+        test = fields.String()
+
+    schema = TestSchema1()
+    with pytest.raises(SerializationError) as e:
+        schema.deserialize(test_input)
+    assert "Failed to find polymorphic key" in e.value.message
+
+
+@pytest.mark.parametrize("test_input", [
+    {
+        'sub_schema': { 'sub_type': 'sub_type', 'test': 'a' }, 
+        'type': 'FAKETYPE', 
+        'test': 'b'
+    }
+])
+def test_poly_missing_identifier(test_input):
+    class TestSchema2(Schema):
+        sub_type = fields.String(required=True)
+        __poly_on__ = sub_type
+    class TestSchema2a(TestSchema2): 
+        __poly_id__ = 'sub_type'
+        test = fields.String(output_missing=False)
+    class TestSchema1(Schema):
+        type = fields.String(required=True)
+        __poly_on__ = type
+        sub_schema = fields.Schema(TestSchema2, required=True)
+    class TestSchema1a(TestSchema1): 
+        __poly_id__ = 'type'
+        test = fields.String()
+
+    schema = TestSchema1()
+    with pytest.raises(SerializationError) as e:
+        schema.deserialize(test_input)
+    assert "Failed to find polymorphic identifier" in e.value.message
