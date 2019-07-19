@@ -775,7 +775,13 @@ class PolySchema(AbstractPolySchema, Schema):
             data = vars(data)
         id_ = data.get(ident_key)
         if not id_:
-            raise SerializationError
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic key '{ident_key}' in input data"
+            )
+        if not self.__poly_mapping__.get(id_):
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic identifier '{id_}' in mapping {self.__poly_mapping__}"
+            )
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.deserialize(data, *args, **kwargs)
 
@@ -786,7 +792,13 @@ class PolySchema(AbstractPolySchema, Schema):
             data = vars(data)
         id_ = data.get(ident_key)
         if not id_:
-            raise SerializationError
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic key '{ident_key}' in input data"
+            )
+        if not self.__poly_mapping__.get(id_):
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic identifier '{id_}' in mapping {self.__poly_mapping__}"
+            )
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.serialize(data, *args, **kwargs)
 
@@ -797,7 +809,13 @@ class PolySchema(AbstractPolySchema, Schema):
             data = vars(data)
         id_ = data.get(ident_key)
         if not id_:
-            raise SerializationError
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic key '{ident_key}' in input data"
+            )
+        if not self.__poly_mapping__.get(id_):
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic identifier '{id_}' in mapping {self.__poly_mapping__}"
+            )
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.validate(data, *args, **kwargs)
 
@@ -808,7 +826,13 @@ class PolySchema(AbstractPolySchema, Schema):
             data = vars(data)
         id_ = data.get(ident_key)
         if not id_:
-            raise SerializationError
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic key '{ident_key}' in input data"
+            )
+        if not self.__poly_mapping__.get(id_):
+            raise SerializationError(
+                f"[{self.__class__.__name__}] Failed to find polymorphic identifier '{id_}' in mapping {self.__poly_mapping__}"
+            )
         schema = self.__poly_mapping__.get(id_)(*self.__poly_args__, **self.__poly_kwargs__)
         return schema.encode(data, *args, **kwargs)
 
@@ -824,7 +848,13 @@ class PolySchema(AbstractPolySchema, Schema):
     def polymorph(cls, *args, **kwargs):
         ident_key = cls.__poly_on__.name
         id_ = kwargs.get(ident_key)
+        if not id_:
+            raise SerializationError(
+                f"[{cls.__name__}] Failed to find polymorphic key '{ident_key}' in input data"
+            )
         schema = cls.getpoly(id_)
         if not schema:
-            raise SerializationError
+            raise SerializationError(
+                f"[{cls.__name__}] Failed to find polymorphic identifier '{id_}' in mapping {cls.__poly_mapping__}"
+            )
         return schema(*args, **kwargs)

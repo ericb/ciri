@@ -8,6 +8,7 @@ class ValidationError(Exception):
 
     def __init__(self, schema, message=None):
        self.schema = schema
+       self.message = message
 
     @property
     def errors(self):
@@ -32,5 +33,5 @@ class FieldValidationError(ValidationError):
         self.error = field_error
 
 
-class SerializationError(Exception):
+class SerializationError(SchemaException):
     pass
