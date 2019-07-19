@@ -505,9 +505,9 @@ class UUID(Field):
 
 class Child(Field):
 
-    def new(self, field, *args, path=None, **kwargs):
+    def new(self, field, *args, **kwargs):
         self.field = field
-        self.path = path
+        self.path = kwargs.pop('path', None)
         self.cache_value = SchemaFieldMissing
 
     def _get_child_value(self, value):
