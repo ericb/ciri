@@ -502,7 +502,6 @@ class UUID(Field):
         raise FieldValidationError(FieldError(self, 'invalid'))
 
 
-
 class Child(Field):
 
     def new(self, field, *args, **kwargs):
@@ -534,3 +533,64 @@ class Child(Field):
     def validate(self, value):
         return self.field.validate(self._get_child_value(value))
 
+
+class Any(Field):
+
+    def new(self, fieldset, *args, **kwargs):
+        self.fieldset = fieldset
+        if not isinstance(self.fieldset, list):
+            raise ValueError("'fieldset' must be a sequence type")
+        for idx, field in enumerate(self.fieldset):
+            if not isinstance(field, AbstractField):
+                raise ValueError("'fieldset' contains an invalid entry at index: {}".format(idx))
+
+    def deserialize(self, value):
+        valid = False
+        for field in self.fieldset:
+            try:
+                value = field.deserialize(value)
+                valid = True
+                break
+            except Exception:
+                continue
+        if not valid:
+            raise SerializationError
+        return value
+
+    def serialize(self, value):
+        valid = False
+        for field in self.fieldset:
+            try:
+                value = field.serialize(value)
+                valid = True
+                break
+            except Exception:
+                continue
+        if not valid:
+            raise SerializationError
+        return value
+
+    def validate(self, value):
+        valid = False
+        for field in self.fieldset:
+            try:
+                value = field.validate(value)
+                valid = True
+                break
+            except Exception:
+                continue
+        if not valid:
+            raise FieldValidationError(FieldError(self, 'invalid'))
+        return value
+
+
+class Anything(Field):
+
+    def serialize(self, value, **kwargs):
+        return value
+
+    def deserialize(self, value):
+        return value
+
+    def validate(self, value):
+        return value

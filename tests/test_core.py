@@ -39,13 +39,13 @@ def test_multiple_invalid_fields():
         name = fields.String(required=True)
         age = fields.Integer(required=True)
 
-    errors = {'name': {'message': fields.String().message.invalid},
-              'age': {'message': fields.Integer().message.invalid}}
+    errors = {'name': {'msg': fields.String().message.invalid},
+              'age': {'msg': fields.Integer().message.invalid}}
 
     schema = S()
     with pytest.raises(ValidationError):
         schema.serialize({'name': 33, 'age': '33'})
-        assert schema.errors == errors
+    assert schema.errors == errors
 
 
 def test_schema_kwargs():

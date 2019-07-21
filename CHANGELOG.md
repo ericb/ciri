@@ -1,10 +1,12 @@
-# PENDING
+# 0.6.0
 
   * Schema `validate()`, `deserialize()`, `serialize()` and `encode()`
     now make use of whitelist, blacklist, tags, and context. fixes issue #2
   * Added updated `validation()` method to PolySchema. fixes issue #3
   * Added `load` kwarg to Fields. Declares the key to lookup when deserializing *only*
   * Added `Child` field type -- Allows the use of nested values
+  * Added `Any` field type -- Allows a "one of X fields" field
+  * Added `Anything` field type -- Passthrough field type 
   * fixed issue with PolySchema not getting it's own poly mapping instance
   * fixed issue with `name` not being respected on some missing values
   * `post_*` schema callables are now called even if no
