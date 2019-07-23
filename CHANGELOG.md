@@ -1,3 +1,8 @@
+# PENDING
+
+  * Fixed schema reference issue with `Any` fields
+
+
 # 0.6.0
 
   * Schema `validate()`, `deserialize()`, `serialize()` and `encode()`

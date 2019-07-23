@@ -547,6 +547,7 @@ class Any(Field):
     def deserialize(self, value):
         valid = False
         for field in self.fieldset:
+            field._schema = self._schema
             try:
                 value = field.deserialize(value)
                 valid = True
@@ -560,6 +561,7 @@ class Any(Field):
     def serialize(self, value):
         valid = False
         for field in self.fieldset:
+            field._schema = self._schema
             try:
                 value = field.serialize(value)
                 valid = True
@@ -573,6 +575,7 @@ class Any(Field):
     def validate(self, value):
         valid = False
         for field in self.fieldset:
+            field._schema = self._schema
             try:
                 value = field.validate(value)
                 valid = True
