@@ -78,7 +78,7 @@ class Field(AbstractField):
                  '_messages', 'message', '_schema', 'validators',
                  'pre_validate', 'pre_serialize', 'pre_deserialize',
                  'post_validate', 'post_serialize', 'post_deserialize',
-                 'missing_output_value', 'tags', 'load']
+                 'missing_output_value', 'tags', 'load', '_og_schema']
 
     def __init__(self, *args, **kwargs):
         self.name = kwargs.get('name', None)
@@ -392,7 +392,8 @@ class SelfReference(Field):
 
     def _get_schema(self):
         if not self.cached:
-            self.cached = self._schema.__class__()
+            self.cached = self._og_schema()
+            self.cached._schema = self._schema
         return self.cached
 
     def serialize(self, value, **kwargs):
@@ -401,7 +402,7 @@ class SelfReference(Field):
 
     def deserialize(self, value):
         schema = self.cached or self._get_schema()
-        return schema.__class__(**value)
+        return schema.deserialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def validate(self, value):
         schema = self.cached or self._get_schema()
@@ -410,7 +411,7 @@ class SelfReference(Field):
         schema._raw_errors = {}
         schema._error_handler.reset()
         try:
-            return schema.validate(value, **self._schema._validation_opts)
+            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, **schema._schema._validation_opts)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 

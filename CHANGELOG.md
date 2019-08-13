@@ -1,6 +1,7 @@
 # PENDING
 
   * Fixed schema reference issue with `Any` fields
+  * Fixed SelfReference field issue with Polymorphic parents
 
 
 # 0.6.0

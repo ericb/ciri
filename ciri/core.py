@@ -331,6 +331,7 @@ class ABCSchema(ABCMeta):
         poly_id = getattr(self, '__poly_id__', None)
         if poly_id:
             self.__poly_parent__.__poly_mapping__[poly_id] = self
+        self._og_schema = self
 
 
 @add_metaclass(ABCSchema)
@@ -344,6 +345,7 @@ class Schema(AbstractSchema):
         self._serialization_opts = {}
         for k in self._fields:
             self._fields[k]._schema = self
+            self._fields[k]._og_schema = self._og_schema
         self.config({})
         self.context = {}
 
