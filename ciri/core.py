@@ -15,6 +15,23 @@ from ciri.registry import schema_registry
 
 logger = logging.getLogger('ciri')
 
+class DebugHelper(object):
+
+    def __init__(self, validation_error):
+        self._root = validation_error
+
+    def log(self, context=None, level=0):
+        if level == 0:
+            logger.warning('')
+        if not context:
+            context = self._root.raw_errors
+        for k, v in context.items():
+            logger.warning('{i}{c}.{k}'.format(i=' ' * level, c=self._root.schema.__class__.__name__, k=k))
+            if v.errors:
+                self.log(context=v.errors, level=level+1)
+            else:
+                logger.warning('{i}(error): {msg}'.format(i=' ' * level, msg=v.message))
+
 
 class ErrorHandler(object):
     """
@@ -24,10 +41,12 @@ class ErrorHandler(object):
     def __init__(self):
         #: Holds formatted Errors
         self.errors = {}
+        self.raw = {}
 
     def reset(self):
         """Clears the current error context"""
         self.errors = {}
+        self.raw = {}
 
     def add(self, key, field_error):
         """Takes a `FieldError`
@@ -38,6 +57,7 @@ class ErrorHandler(object):
         """
         key = str(key)
         self.errors[key] = {'msg': field_error.message}
+        self.raw[key] = field_error
         if field_error.errors:
             handler = self.__class__()
             for k, v in field_error.errors.items():
@@ -359,6 +379,10 @@ class Schema(AbstractSchema):
     @property
     def errors(self):
         return self._error_handler.errors
+
+    @property
+    def raw_errors(self):
+        return self._error_handler.raw
 
     def pre_process(self, data):
         pass

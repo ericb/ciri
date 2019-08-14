@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri import fields
 from ciri.fields import FieldError
-from ciri.core import Schema, SchemaOptions
+from ciri.core import Schema, SchemaOptions, DebugHelper
 from ciri.registry import SchemaRegistry, schema_registry
 from ciri.exception import ValidationError, SerializationError, FieldValidationError
 
@@ -700,3 +700,66 @@ def test_deserialize_with_load():
     s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
     assert s.first_name == 'foo bar'
 
+def test_debug_helper():
+
+    class CarBrand(Schema):
+        label = fields.String(required=True)
+        desc = fields.String(required=True)
+
+    class DealershipCarBrands(Schema):
+        n_brands = fields.Float(required=True)
+        brands = fields.List(fields.Schema(CarBrand), required=True)
+
+    class Dealership(Schema):
+        info = fields.Schema(DealershipCarBrands, required=True)
+
+    car_dict = {
+        "info": {
+            "n_brands": 2,
+            "brands": [
+                { "label": "TSLA", "desc": "Tesla" },
+                { "label": 1, "desc": "Ford" }
+            ]
+        }
+    }
+
+    try:
+        dealership = Dealership().deserialize(car_dict)
+    except Exception as e:
+        print(e.errors)
+        helper = DebugHelper(e)
+        helper.log()
+    assert False 
+
+def test_debug_helper2():
+
+    import ciri.fields as f
+    from ciri.core import PolySchema
+
+    class FormatSchema(Schema):
+        font_family = f.String()
+
+    class TopLevelSchema(PolySchema):
+        name = f.String(required=True)
+        value = f.String()
+        order = f.Integer()
+        formatting = f.Schema(FormatSchema)
+        __poly_on__ = name
+
+    class ExtendedLevelSchema(TopLevelSchema):
+        __poly_id__ = 'extended'
+        coordinates = f.List(f.Integer())
+        children = f.List(TopLevelSchema(), default=[])
+
+
+    test = {'name': 'extended', 'value': 'brochure', 'order': 1, 'formatting': {'font_family': 'sans-serif'},
+            'coordinates': [1, 5, 8], 'children': [{'name': 'extended', 'value': 'trifold', 'order': '20',
+                                                    'formatting': {'font_family': 'Helvetica'}, 'coordinates': [1, 3], 'children': []}]}
+
+    try:
+        ser_test = TopLevelSchema().serialize(test)
+    except ValidationError as e:
+        print(e.errors)
+        helper = DebugHelper(e)
+        helper.log()
+    assert False

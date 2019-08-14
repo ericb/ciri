@@ -14,6 +14,10 @@ class ValidationError(Exception):
     def errors(self):
         return self.schema.errors
 
+    @property
+    def raw_errors(self):
+        return self.schema.raw_errors
+
 
 class RegistryError(Exception):
     pass
