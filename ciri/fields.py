@@ -103,6 +103,11 @@ class Field(AbstractField):
         else:
             setattr(self, type_, [])
 
+    def _does_allow_none(self):
+        if self.allow_none is True or (self.allow_none is UseSchemaOption and self._schema._config.allow_none):
+            return True
+        return False
+
     def serialize(self, value, **kwargs):
         """
         Serialization method 
@@ -145,16 +150,22 @@ class String(Field):
         self.encoding = kwargs.get('unicode_enc', 'utf-8')
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         if str is not str_:
             return str_(value, self.encoding)
         return value
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if str is not str_:
             return str_(value, self.encoding)
         return value
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if str is not str_:
             if isinstance(value, str_) and str_(value) == value:
                 value = str(value)
@@ -175,12 +186,18 @@ class Integer(Field):
     messages = {'invalid': 'Field is not a valid Integer'}
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return int(value)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if type(value) is int:
             return value
         try:
@@ -207,12 +224,18 @@ class Float(Field):
         self.strict = kwargs.get('strict', False)  # allow integers to be passed and converted to a float
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return float(value)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if type(value) is float:
             return value
         if type(value) in (bool, str, str_):
@@ -232,14 +255,20 @@ class Float(Field):
 class Boolean(Field):
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         if value:
             return True
         return False
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return bool(value)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if type(value) is not bool:
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
@@ -251,12 +280,18 @@ Bool = Boolean
 class Dict(Field):
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return dict(value)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if not isinstance(value, dict):
             raise FieldValidationError(FieldError(self, 'invalid'))
         return value
@@ -285,12 +320,18 @@ class List(Field):
         self.items = kwargs.get('items', [])
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return [self.field.serialize(v) for v in value]
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return [self.field.deserialize(v) for v in value]
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         valid = []
         errors = {}
         if not isinstance(value, list):
@@ -349,14 +390,20 @@ class Schema(Field):
         return self.cached
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         return schema.serialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         return schema.deserialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
@@ -397,14 +444,20 @@ class SelfReference(Field):
         return self.cached
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         return schema.serialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         return schema.deserialize(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags)
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         schema = self.cached or self._get_schema()
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
@@ -421,6 +474,8 @@ class Date(Field):
     messages = {'invalid': 'Invalid ISO-8601 Date'}
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         try:
             value = datetime.datetime(value.year, value.month, value.day)
             return value.isoformat('_').split('_')[0]
@@ -428,9 +483,13 @@ class Date(Field):
             raise SerializationError
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if type(value) is datetime.date:
             return value
         
@@ -463,15 +522,21 @@ class DateTime(Field):
     messages = {'invalid': 'Invalid ISO-8601 DateTime'}
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         try:
             return value.isoformat()
         except Exception:
             raise SerializationError
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         if isinstance(value, datetime.date):
             return value
         try:
@@ -488,12 +553,18 @@ class UUID(Field):
     messages = {'invalid': 'Field is not a valid UUID'}
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return str(value)
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return value
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         try:
             return uuid.UUID(value)
         except (ValueError, AttributeError, TypeError):
@@ -526,12 +597,18 @@ class Child(Field):
         return self.cache_value
 
     def serialize(self, value, **kwargs):
+        if value is None and self._does_allow_none():
+            return None
         return self.field.serialize(self._get_child_value(value))
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return self.field.deserialize(self._get_child_value(value))
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         return self.field.validate(self._get_child_value(value))
 
 
@@ -546,6 +623,8 @@ class Any(Field):
                 raise ValueError("'fieldset' contains an invalid entry at index: {}".format(idx))
 
     def deserialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         valid = False
         for field in self.fieldset:
             field._schema = self._schema
@@ -560,6 +639,8 @@ class Any(Field):
         return value
 
     def serialize(self, value):
+        if value is None and self._does_allow_none():
+            return None
         valid = False
         for field in self.fieldset:
             field._schema = self._schema
@@ -574,6 +655,8 @@ class Any(Field):
         return value
 
     def validate(self, value):
+        if value is None and self._does_allow_none():
+            return None
         valid = False
         for field in self.fieldset:
             field._schema = self._schema
