@@ -19,18 +19,43 @@ class DebugHelper(object):
 
     def __init__(self, validation_error):
         self._root = validation_error
+        self._current_schema = None
+        self.path = ''
 
     def log(self, context=None, level=0):
         if level == 0:
             logger.warning('')
+            logger.warning('Stack:')
+            level += 1
         if not context:
             context = self._root.raw_errors
         for k, v in context.items():
-            logger.warning('{i}{c}.{k}'.format(i=' ' * level, c=self._root.schema.__class__.__name__, k=k))
+            schema_name = v.field._schema.__class__.__name__
+            if self._current_schema != schema_name:
+                self.path += '.' + schema_name
+                if level == 1:
+                    self.path = '  ' + self.path[1:]
+                self._current_schema = schema_name
+                logger.warning('{i}{c} ->'.format(i=' ' * level, c=schema_name))
+                level = level + 1
+            else:
+                schema_name = ''
+            try:
+                if int(k) > -1:
+                    k = '[' + str(k) + ']'
+            except Exception:
+                pass
+            self.path += '.' + k
             if v.errors:
+                logger.warning('{i}{k}'.format(i=' ' * level, k=k))
                 self.log(context=v.errors, level=level+1)
             else:
-                logger.warning('{i}(error): {msg}'.format(i=' ' * level, msg=v.message))
+                logger.warning('{i}{k}: {msg}'.format(i=' ' * level, k=k, msg=v.message))
+
+        if level == 2:
+            logger.warning('')
+            logger.warning('Error Path:')
+            logger.warning(self.path)
 
 
 class ErrorHandler(object):
