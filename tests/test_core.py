@@ -700,3 +700,4 @@ def test_deserialize_with_load():
     s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
     assert s.first_name == 'foo bar'
 
+

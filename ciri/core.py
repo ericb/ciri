@@ -511,7 +511,7 @@ class Schema(AbstractSchema):
                 if post_validate:
                     for validator in post_validate.get(key, []):
                         try:
-                            klass_value = valid[key] = validator(valid[key], schema=parent, field=field)
+                            klass_value = valid[key] = validator(klass_value, schema=parent, field=field)
                         except FieldValidationError as field_exc:
                             errors[str_key] = field_exc.error
                             invalid = True

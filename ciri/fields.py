@@ -405,9 +405,9 @@ class Schema(Field):
         if value is None and self._does_allow_none():
             return None
         schema = self.cached or self._get_schema()
+        schema._raw_errors = {}
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema._raw_errors = {}
         schema._error_handler.reset()
         try:
             return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, **schema._schema._validation_opts)
@@ -459,9 +459,9 @@ class SelfReference(Field):
         if value is None and self._does_allow_none():
             return None
         schema = self.cached or self._get_schema()
+        schema._raw_errors = {}
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema._raw_errors = {}
         schema._error_handler.reset()
         try:
             return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, **schema._schema._validation_opts)
