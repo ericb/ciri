@@ -77,7 +77,7 @@ def test_subschema_pre_serializer():
 
     class Root(Schema):
         node = SubSchema(Node, required=True)
-        enabled = Boolean(default=False)
+        enabled = Boolean(default=False, output_missing=True)
 
     schema = Root()
     assert schema.serialize({'node': {'label': 'foo bar', 'id': 'foo bar'}}) == {'enabled': False, 'node': {'label': 'foo bar', 'id': 'FOO_BAR'}}
@@ -93,7 +93,7 @@ def test_subschema_as_none():
         enabled = Boolean(default=False)
 
     schema = Root()
-    assert schema.serialize({'node': None}) == {'enabled': False, 'node': None}
+    assert schema.serialize({'node': None}) == {'node': None}
 
 def test_subschema_deserialize_as_none():
     class Node(Schema):

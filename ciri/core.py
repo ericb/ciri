@@ -453,7 +453,7 @@ class Schema(AbstractSchema):
                 continue
 
             # if the field is missing, set the default value
-            if missing and (fields[key].default is not SchemaFieldDefault):
+            if missing and (fields[key].default is not SchemaFieldDefault) and (fields[key].output_missing is True or output_missing):
                 if callable(fields[key].default):
                     klass_value = fields[key].default(parent, field)
                 else:
@@ -465,6 +465,11 @@ class Schema(AbstractSchema):
             # the field missing output value
             if not field.required and missing and (fields[key].output_missing is True or output_missing):
                 klass_value = fields[key].missing_output_value
+
+
+            # if the field is missing and we do not output_missing skip it
+            if not field.required and missing and (fields[key].output_missing is not True and output_missing is not True):
+                continue
 
             if do_validate:
 

@@ -14,7 +14,7 @@ import pytest
 
 def test_default_value():
     class S(Schema):
-        active = fields.Boolean(default=True)
+        active = fields.Boolean(default=True, output_missing=True)
     schema = S()
     assert schema.serialize({}) == {'active': True}
 

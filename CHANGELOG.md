@@ -1,5 +1,7 @@
 # PENDING
 
+  * **BREAKING** Modified behavior of `default` field property
+    to only set a default if `output_missing` is true.
   * Fixed schema reference issue with `Any` fields
   * Fixed SelfReference field issue with Polymorphic parents
 
@@ -12,16 +14,16 @@
   * Added `load` kwarg to Fields. Declares the key to lookup when deserializing *only*
   * Added `Child` field type -- Allows the use of nested values
   * Added `Any` field type -- Allows a "one of X fields" field
-  * Added `Anything` field type -- Passthrough field type 
+  * Added `Anything` field type -- Passthrough field type
   * fixed issue with PolySchema not getting it's own poly mapping instance
   * fixed issue with `name` not being respected on some missing values
   * `post_*` schema callables are now called even if no
      value was set.
   * `pre_validate` and `post_validate` schema callables are now
-     called during `validate()`. 
+     called during `validate()`.
   * `fields.Schema` now correctly passes validation options
   * `fields.Schema` now tracks field level options
-  * `fields.Schema` can now serialize polymorphic schemas 
+  * `fields.Schema` can now serialize polymorphic schemas
   * `fields.Schema` now deserializes as objects
   * `output_missing` no longer assumes `allow_none` behavior
   * `output_missing` now also checks against field level options

@@ -29,7 +29,7 @@ def test_default_callable():
         return 'audrey'
 
     class S(Schema):
-        name = fields.String(default=make_name)
+        name = fields.String(default=make_name, output_missing=True)
     schema = S()
     assert schema.serialize({}) == {'name': 'audrey'}
 
@@ -99,7 +99,7 @@ def test_double_subclass_schema():
         child = fields.Schema(Person)
 
     class Father(Parent):
-        sex = fields.String(default='male')
+        sex = fields.String(default='male', output_missing=True)
 
     child = Person(name='Sarah', age=17)
     father = Father(name='Jack', age=52, child=child)
@@ -700,4 +700,10 @@ def test_deserialize_with_load():
     s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
     assert s.first_name == 'foo bar'
 
-
+def test_output_missing_with_default():
+    class S(Schema):
+        first_name = fields.String(default='first')
+        last_name = fields.String(default='last')
+    schema = S()
+    output = schema.serialize({})
+    assert output == {}
