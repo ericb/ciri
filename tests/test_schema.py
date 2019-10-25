@@ -4,7 +4,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
 from ciri.fields import Boolean, Float, String, List, Schema as SubSchema, SelfReference
-from ciri.core import Schema, PolySchema
+from ciri.core import Schema, PolySchema, SchemaOptions
 from ciri.exception import ValidationError
 
 import pytest
@@ -197,3 +197,35 @@ def test_subschema_list_of_sub_as_objects():
     dealership = Dealership().deserialize(car_dict)
     assert dealership.info.brands[1].label == 'F'
 
+def test_schema_field_with_name():
+    class Node(Schema):
+        id = String(required=True)
+        label = String()
+
+    class Root(Schema):
+        node = SubSchema(Node, name="foo_node", allow_none=False)
+        enabled = Boolean(default=False)
+
+    root = Root().deserialize({'node': {'id': '1', 'label': 'Testing'}, 'enabled': False})
+    root_output = Root().serialize(root)
+    assert root_output['foo_node'] == {'id': '1', 'label': 'Testing'}
+
+
+def test_schema_field_with_default_callable():
+    class Node(Schema):
+        class Meta:
+            options = SchemaOptions(output_missing=True)
+
+        id = String()
+        label = String()
+
+    def make_subschema(schema, field):
+        return field.schema().serialize({})
+
+    class Root(Schema):
+        node = SubSchema(Node, name="foo_node", default=make_subschema, output_missing=True)
+        enabled = Boolean(default=False)
+
+    root = Root().deserialize({'enabled': False})
+    root_output = Root().serialize(root)
+    assert root_output['foo_node'] == {'id': None, 'label': None}

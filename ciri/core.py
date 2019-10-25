@@ -412,6 +412,14 @@ class Schema(AbstractSchema):
                 parent._pending_schemas.pop(key)
 
             if key in parent._subfields:
+                pfield = parent._subfields[key]  # reference the actual schema field
+                # if the subfield is missing, set the default value
+                if missing and (pfield.default is not SchemaFieldDefault) and (pfield.output_missing is True or output_missing):
+                    if callable(pfield.default):
+                        klass_value = pfield.default(parent, pfield)
+                    else:
+                        klass_value = pfield.default
+                    missing = False
                 if klass_value is not None and not missing:
                     if isinstance(field, AbstractPolySchema):
                         try:
@@ -423,7 +431,6 @@ class Schema(AbstractSchema):
                             errors[key] = FieldError(parent._subfields[key], 'invalid_polykey')
                             continue
                 if klass_value is None or missing:
-                    pfield = parent._subfields[key]  # reference the actual schema field
                     if pfield.allow_none is UseSchemaOption and not allow_none:
                         errors[key] = FieldError(parent._subfields[key], 'invalid')
                         continue
@@ -445,7 +452,8 @@ class Schema(AbstractSchema):
                     if do_validate:
                         sub = klass_value = valid[key] = parent._subfields[key].validate(sub)
                     if do_serialize:
-                        sub = klass_value = valid[key] = parent._subfields[key].serialize(sub)
+                        output_key = parent._subfields[key].name or key
+                        sub = klass_value = valid[output_key] = parent._subfields[key].serialize(sub)
                     if do_deserialize:
                         sub = klass_value = valid[key] = parent._subfields[key].deserialize(sub)
                 except ValidationError as _e:

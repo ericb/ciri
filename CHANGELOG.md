@@ -4,6 +4,8 @@
     to only set a default if `output_missing` is true.
   * Fixed schema reference issue with `Any` fields
   * Fixed SelfReference field issue with Polymorphic parents
+  * Fixed sub schema values not respecting name key
+  * Fixed sub schema default values not setting correctly
 
 
 # 0.6.0
