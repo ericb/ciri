@@ -454,6 +454,8 @@ class Schema(AbstractSchema):
                     if do_serialize:
                         output_key = parent._subfields[key].name or key
                         sub = klass_value = valid[output_key] = parent._subfields[key].serialize(sub)
+                        if output_key != key:
+                            valid.pop(key, None)
                     if do_deserialize:
                         sub = klass_value = valid[key] = parent._subfields[key].deserialize(sub)
                 except ValidationError as _e:
