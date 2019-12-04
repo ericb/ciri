@@ -469,6 +469,11 @@ class Schema(AbstractSchema):
                 else:
                     klass_value = fields[key].default
                 missing = False
+            elif klass_value is None and fields[key].default is not SchemaFieldDefault and (fields[key].output_missing is True or output_missing):
+                if callable(fields[key].default):
+                    klass_value = fields[key].default(parent, field)
+                else:
+                    klass_value = fields[key].default
 
             # if fields are not required, but missing and
             # we allow them in the output, set the value to
@@ -508,12 +513,14 @@ class Schema(AbstractSchema):
                 elif not missing and field.required is True and field.allow_none is False and klass_value == None:
                     errors[str_key] = FieldError(fields[key], 'required')
                     invalid = True
+                elif (missing or klass_value is None) and field.allow_none is False:
+                    errors[str_key] = FieldError(field, 'invalid')
+                    invalid = True
                 elif klass_value == field.missing_output_value:
                     pass
-                elif (missing or klass_value is None) and field.allow_none is False:
-                    errors[key] = FieldError(field, 'invalid')
                 elif (missing or klass_value is None) and allow_none is False and field.allow_none is not True:
-                    errors[key] = FieldError(field, 'invalid')
+                    errors[str_key] = FieldError(field, 'invalid')
+                    invalid = True
                 elif allow_none and field.allow_none is UseSchemaOption and (klass_value is None or klass_value is SchemaFieldMissing):
                     pass
                 elif not missing:

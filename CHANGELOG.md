@@ -6,6 +6,7 @@
   * Fixed SelfReference field issue with Polymorphic parents
   * Fixed sub schema values not respecting name key
   * Fixed sub schema default values not setting correctly
+  * Fixed issue with None values not applying defaults
 
 
 # 0.6.0
