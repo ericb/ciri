@@ -224,6 +224,22 @@ def test_missing_schema_field_with_name_and_output_missing():
     assert root_output == {'foo_node': {'id': None}}
 
 
+def test_missing_schema_field_with_name_and_schema_output_missing():
+    class Node(Schema):
+        class Meta:
+            options = SchemaOptions(output_missing=True)
+        
+        id = String(allow_none=True)
+        label = String()
+
+    class Root(Schema):
+        node = SubSchema(Node, name="foo_node", allow_none=True, output_missing=True)
+
+    # root = Root().deserialize({'enabled': False})
+    root_output = Root().serialize()
+    assert root_output == {'foo_node': {'id': None, 'label': None}}
+
+
 def test_missing_schema_field_with_name():
     class Node(Schema):
         id = String()

@@ -419,13 +419,6 @@ class Schema(AbstractSchema):
                 if not pfield.required and missing and (pfield.output_missing is not True and output_missing is not True):
                     continue
 
-                # if the subfield is missing but its child fields have output_missing, default to empty dict
-                if missing:
-                    pschema = pfield._get_schema()
-                    if any([pschema._fields[f].output_missing for f in pschema._fields]):
-                        klass_value = {}
-                        missing = False
-
                 # if the subfield is missing, set the default value
                 if missing and (pfield.default is not SchemaFieldDefault) and (pfield.output_missing is True or output_missing):
                     if callable(pfield.default):
@@ -433,6 +426,14 @@ class Schema(AbstractSchema):
                     else:
                         klass_value = pfield.default
                     missing = False
+
+                # if the subfield is missing but its child fields have output_missing, default to empty dict
+                if missing and (pfield.output_missing is True or output_missing):
+                    pschema = pfield._get_schema()
+                    if pschema._config.output_missing or any([pschema._fields[f].output_missing for f in pschema._fields]):
+                        klass_value = {}
+                        missing = False
+
                 if klass_value is not None and not missing:
                     if isinstance(field, AbstractPolySchema):
                         try:
