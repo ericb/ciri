@@ -413,6 +413,19 @@ class Schema(AbstractSchema):
 
             if key in parent._subfields:
                 pfield = parent._subfields[key]  # reference the actual schema field
+                output_key = pfield.name or key
+
+                # if the subfield is missing and we do not output_missing skip it
+                if not pfield.required and missing and (pfield.output_missing is not True and output_missing is not True):
+                    continue
+
+                # if the subfield is missing but its child fields have output_missing, default to empty dict
+                if missing:
+                    pschema = pfield._get_schema()
+                    if any([pschema._fields[f].output_missing for f in pschema._fields]):
+                        klass_value = {}
+                        missing = False
+
                 # if the subfield is missing, set the default value
                 if missing and (pfield.default is not SchemaFieldDefault) and (pfield.output_missing is True or output_missing):
                     if callable(pfield.default):
@@ -428,17 +441,17 @@ class Schema(AbstractSchema):
                                 klass_value = vars(klass_value)
                             field = field.getpoly(klass_value[polykey])()
                         except Exception:
-                            errors[key] = FieldError(parent._subfields[key], 'invalid_polykey')
+                            errors[key] = FieldError(pfield, 'invalid_polykey')
                             continue
                 if klass_value is None or missing:
                     if pfield.allow_none is UseSchemaOption and not allow_none:
-                        errors[key] = FieldError(parent._subfields[key], 'invalid')
+                        errors[key] = FieldError(pfield, 'invalid')
                         continue
                     elif pfield.allow_none is False:
-                        errors[key] = FieldError(parent._subfields[key], 'invalid')
+                        errors[key] = FieldError(pfield, 'invalid')
                         continue
                     else:
-                        klass_value = valid[key] = None
+                        klass_value = valid[output_key] = None
                         continue
                 data_keys = []
                 sub = klass_value
@@ -450,16 +463,15 @@ class Schema(AbstractSchema):
                 key_cache = set(field._e + data_keys)
                 try:
                     if do_validate:
-                        sub = klass_value = valid[key] = parent._subfields[key].validate(sub)
+                        sub = klass_value = valid[key] = pfield.validate(sub)
                     if do_serialize:
-                        output_key = parent._subfields[key].name or key
-                        sub = klass_value = valid[output_key] = parent._subfields[key].serialize(sub)
+                        sub = klass_value = valid[output_key] = pfield.serialize(sub)
                         if output_key != key:
                             valid.pop(key, None)
                     if do_deserialize:
-                        sub = klass_value = valid[key] = parent._subfields[key].deserialize(sub)
+                        sub = klass_value = valid[key] = pfield.deserialize(sub)
                 except ValidationError as _e:
-                    errors[key] = FieldError(parent._subfields[key], 'invalid', errors=field._raw_errors)
+                    errors[key] = FieldError(pfield, 'invalid', errors=field._raw_errors)
                 continue
 
             # if the field is missing, set the default value
