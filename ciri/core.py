@@ -430,7 +430,8 @@ class Schema(AbstractSchema):
                 # if the subfield is missing but its child fields have output_missing, default to empty dict
                 if missing and (pfield.output_missing is True or output_missing is True):
                     pschema = pfield._get_schema()
-                    if pschema._config.output_missing or any([pschema._fields[f].output_missing for f in pschema._fields]):
+                    if pschema._config.output_missing is True or \
+                            any([pschema._fields[f].output_missing is True for f in pschema._fields]):
                         klass_value = {}
                         missing = False
 
