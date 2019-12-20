@@ -9,8 +9,6 @@ class ValidationError(Exception):
     def __init__(self, schema, message=None):
        self.schema = schema
        self.message = message
-       print(self.message)
-       print(self.schema.errors)
 
     @property
     def errors(self):
