@@ -7,6 +7,8 @@
   * Fixed sub schema values not respecting name key
   * Fixed sub schema default values not setting correctly
   * Fixed issue with None values not applying defaults
+  * Fixed sub schema unnecessarily outputting when missing
+  * Fixed sub schema default value not respecting name key
 
 
 # 0.6.0
