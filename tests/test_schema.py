@@ -6,6 +6,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 from ciri.fields import Boolean, Float, String, List, Schema as SubSchema, SelfReference
 from ciri.core import Schema, PolySchema, SchemaOptions
 from ciri.exception import ValidationError
+from ciri.registry import schema_registry
 
 import pytest
 
@@ -271,3 +272,15 @@ def test_schema_field_with_default_callable():
     root = Root().deserialize({'enabled': False})
     root_output = Root().serialize(root)
     assert root_output['foo_node'] == {'id': None, 'label': None}
+
+
+def test_subrecursive_serialize_list():
+
+    class Node(Schema):
+        id = String(required=True)
+        node = List(SubSchema('Node'))
+
+    schema_registry.add('Node', Node)
+
+    schema = Node()
+    assert schema.serialize({'id': '1', 'node': [{'id': '2', 'node': None}]}) == {'node': [{'id': '2'}], 'id': '1'}

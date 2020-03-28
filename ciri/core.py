@@ -396,7 +396,7 @@ class Schema(AbstractSchema):
             str_key = str(key)
             load_key = key
             if key not in self._subfields and key not in self._pending_schemas:
-                if do_deserialize:
+                if do_deserialize or (do_validate and not do_serialize):
                     load_key = getattr(fields[key], 'load', None) or key
 
             # field value
@@ -447,23 +447,18 @@ class Schema(AbstractSchema):
                     else:
                         klass_value = valid[output_key] = None
                         continue
-                data_keys = []
                 sub = klass_value
                 if hasattr(klass_value, '__dict__'):
                     sub = vars(klass_value)
-                for k in sub:  # check the subfield elements to iterate
-                    if field._fields.get(k):
-                        data_keys.append(k)
-                key_cache = set(field._e + data_keys)
                 try:
                     if do_validate:
-                        sub = klass_value = valid[key] = pfield.validate(sub)
+                        klass_value = valid[key] = pfield.validate(sub)
                     if do_serialize:
-                        sub = klass_value = valid[output_key] = pfield.serialize(sub)
+                        klass_value = valid[output_key] = pfield.serialize(sub)
                         if output_key != key:
                             valid.pop(key, None)
                     if do_deserialize:
-                        sub = klass_value = valid[key] = pfield.deserialize(sub)
+                        klass_value = valid[key] = pfield.deserialize(sub)
                 except ValidationError as _e:
                     errors[key] = FieldError(pfield, 'invalid', errors=field._raw_errors)
                 continue

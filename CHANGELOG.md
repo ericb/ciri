@@ -9,6 +9,7 @@
   * Fixed issue with None values not applying defaults
   * Fixed sub schema unnecessarily outputting when missing
   * Fixed sub schema default value not respecting name key
+  * Fixed sub schema mishandling load/name
 
 
 # 0.6.0

@@ -707,3 +707,16 @@ def test_output_missing_with_default():
     schema = S()
     output = schema.serialize({})
     assert output == {}
+
+
+def test_schema_subschema_elements_have_load():
+    class S(Schema):
+        name_ = fields.String(name='name', load='name')
+
+    class Parent(Schema):
+        sub = fields.Schema(S)
+
+    schema = Parent()
+    obj = schema.deserialize({'sub': {'name': 'TheFalcon'}})
+    assert obj == Parent(sub=S(name_='TheFalcon'))
+    assert obj.serialize() == {'sub': {'name': 'TheFalcon'}}
