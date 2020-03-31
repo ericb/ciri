@@ -394,15 +394,17 @@ class Schema(AbstractSchema):
             if key in exclude:
                 continue
             str_key = str(key)
-            load_key = key
-            if key not in self._subfields and key not in self._pending_schemas:
-                if do_deserialize or (do_validate and not do_serialize):
-                    load_key = getattr(fields[key], 'load', None) or key
 
             # field value
-            klass_value = data.get(load_key, SchemaFieldMissing)
-            invalid = False
+            if do_serialize:
+                klass_value = data.get(key, SchemaFieldMissing)
+            elif do_deserialize or do_validate:
+                load_key = getattr(fields[key], 'load', None) or key
+                klass_value = data.get(load_key, SchemaFieldMissing)
+            if do_validate and klass_value is SchemaFieldMissing:
+                klass_value = data.get(key, SchemaFieldMissing)
 
+            invalid = False
             field = fields[key]
             missing = (klass_value is SchemaFieldMissing)
 

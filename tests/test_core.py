@@ -720,3 +720,16 @@ def test_schema_subschema_elements_have_load():
     obj = schema.deserialize({'sub': {'name': 'TheFalcon'}})
     assert obj == Parent(sub=S(name_='TheFalcon'))
     assert obj.serialize() == {'sub': {'name': 'TheFalcon'}}
+
+
+def test_schema_parent_schema_element_has_load():
+    class S(Schema):
+        name = fields.String()
+
+    class Parent(Schema):
+        sub_ = fields.Schema(S, load='sub', name='sub')
+
+    schema = Parent()
+    obj = schema.deserialize({'sub': {'name': 'TheFalcon'}})
+    assert obj == Parent(sub_=S(name='TheFalcon'))
+    assert obj.serialize() == {'sub': {'name': 'TheFalcon'}}
