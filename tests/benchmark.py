@@ -105,7 +105,11 @@ if __name__ == '__main__':
 
     end = timer()
 
+<<<<<<< HEAD
     avg_duration = (end-start) / ncalls
+=======
+    avg_duration = (start-end) / ncalls
+>>>>>>> d2e6700... modularization updates
 
     print("Average schema initialization duration over {} calls: {} seconds".format(ncalls, avg_duration))
 
@@ -116,7 +120,11 @@ if __name__ == '__main__':
 
     end = timer()
 
+<<<<<<< HEAD
     avg_duration = (end-start) / ncalls
+=======
+    avg_duration = (start-end) / ncalls
+>>>>>>> d2e6700... modularization updates
 
     print("Average schema serialization duration over {} calls: {} seconds".format(ncalls, avg_duration))
 
