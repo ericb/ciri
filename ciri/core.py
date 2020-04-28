@@ -524,7 +524,6 @@ class Schema(AbstractSchema):
                 self._subschemas[key] = field._get_schema()
                 self._pending_schemas.pop(key)
 
-            # import ipdb; ipdb.set_trace()
             if key in self._subschemas and klass_value is not None and not missing:
                 subschema = self._subschemas[key]  # reference the subschema
                 if isinstance(subschema, AbstractPolySchema):
