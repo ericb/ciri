@@ -14,6 +14,10 @@
   * Fixed inability to set same load key on multiple fields
   * Fixed child element errors for sub-object data
   * Fixed child field value invaid caching
+  * Modularization updates
+  * Added repr and str to exceptions
+  * Fixed issue with None being default-allowed in subschemas, updated tests
+  * Added benchmark test
 
 
 # 0.6.0
