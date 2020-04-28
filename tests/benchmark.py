@@ -105,7 +105,7 @@ if __name__ == '__main__':
 
     end = timer()
 
-    avg_duration = (start-end) / ncalls
+    avg_duration = (end-start) / ncalls
 
     print("Average schema initialization duration over {} calls: {} seconds".format(ncalls, avg_duration))
 
@@ -116,7 +116,7 @@ if __name__ == '__main__':
 
     end = timer()
 
-    avg_duration = (start-end) / ncalls
+    avg_duration = (end-start) / ncalls
 
     print("Average schema serialization duration over {} calls: {} seconds".format(ncalls, avg_duration))
 
