@@ -1,22 +1,17 @@
 import datetime
-import uuid
 import re
+import sys
+import traceback
+import uuid
+
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass, str_
 from ciri.registry import schema_registry
-from ciri.exception import InvalidSchemaException, SchemaException, SerializationError, RegistryError, ValidationError, FieldValidationError
+from ciri.exception import InvalidSchemaException, SchemaException, SerializationError, RegistryError, \
+    ValidationError, FieldValidationError, FieldError
 from ciri.util.dateparse import parse_date, parse_datetime
-
-
-class FieldError(object):
-
-    def __init__(self, field_cls, field_msg_key=None, errors=None, *args, **kwargs):
-        self.field = field_cls
-        self.message_key = field_msg_key
-        self.message = kwargs.get('message') or field_cls.message[field_msg_key]
-        self.errors = errors
 
 
 class FieldErrorMessages(object):
@@ -305,7 +300,6 @@ class List(Field):
 
     def new(self, *args, **kwargs):
         self.field = None
-        self.schema_list = False
         if len(args) > 0:
             self.field = args[0]
         kwarg_field = kwargs.get('of')
@@ -314,22 +308,27 @@ class List(Field):
         elif not self.field and kwarg_field:
             self.field = kwarg_field
         if isinstance(self.field, AbstractSchema):
-            self.schema_list = True
+            cached = self.field
+            self.field = Schema(self.field.__class__)
+            self.field.cached = cached
         elif not isinstance(self.field, AbstractField):
             raise ValueError("'of' field must be a subclass of AbstractField or AbstractSchema")
         self.items = kwargs.get('items', [])
 
     def serialize(self, value, **kwargs):
+        self.field._schema = self._schema
         if value is None and self._does_allow_none():
             return None
         return [self.field.serialize(v) for v in value]
 
     def deserialize(self, value):
+        self.field._schema = self._schema
         if value is None and self._does_allow_none():
             return None
         return [self.field.deserialize(v) for v in value]
 
     def validate(self, value):
+        self.field._schema = self._schema
         if value is None and self._does_allow_none():
             return None
         valid = []
@@ -337,27 +336,15 @@ class List(Field):
         if not isinstance(value, list):
             raise FieldValidationError(FieldError(self, 'invalid'))
         for k, v in enumerate(value):
-            if self.schema_list:
-                if not hasattr(v, '__dict__') and (type(v) is not dict or not isinstance(v, dict)):
-                    errors[str(k)] = FieldError(self, 'invalid_mapping')
-                    if self.field._schema._validation_opts.get('halt_on_error'):
-                        break
-                    continue
             try:
                 valid.append(self.field.validate(v))
             except FieldValidationError as field_exc:
                 errors[str(k)] = field_exc.error
-                if self.field._schema._validation_opts.get('halt_on_error'):
+                if self._schema.halt_on_error:
                     break
         if errors:
             raise FieldValidationError(FieldError(self, 'invalid_item', errors=errors))
         return valid
-
-    def __setattr__(self, k, v):
-        if k == '_schema':
-            if hasattr(self, 'field'):
-                self.field._schema = v
-        super(Field, self).__setattr__(k, v)
 
 
 class Schema(Field):
@@ -386,7 +373,6 @@ class Schema(Field):
                 if not self.schema:
                     self.schema = self.registry.get(self.raw_schema)
                 self.cached = self.schema()
-            self.cached._schema = self._schema
         return self.cached
 
     def serialize(self, value, **kwargs):
@@ -405,23 +391,12 @@ class Schema(Field):
         if value is None and self._does_allow_none():
             return None
         schema = self.cached or self._get_schema()
-        schema._raw_errors = {}
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
-            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema._error_handler.reset()
+            raise FieldValidationError(FieldError(self, 'invalid_mapping'))
         try:
-            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, **schema._schema._validation_opts)
+            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, halt_on_error=self._schema.halt_on_error)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
-
-    def __setattr__(self, k, v):
-        if k == '_schema':
-            if getattr(self, 'cached'):
-                self.cached._schema = v
-                for field in self.cached._fields:
-                    # NOTE: this could interfere with the _schema if it's purpose changes in the future
-                    self.cached._fields[field]._schema = v
-        super(Field, self).__setattr__(k, v)
 
 
 class SelfReference(Field):
@@ -459,12 +434,10 @@ class SelfReference(Field):
         if value is None and self._does_allow_none():
             return None
         schema = self.cached or self._get_schema()
-        schema._raw_errors = {}
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
-            raise FieldValidationError(FieldError(self, 'invalid_mapping', errors=schema._raw_errors))
-        schema._error_handler.reset()
+            raise FieldValidationError(FieldError(self, 'invalid_mapping'))
         try:
-            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, **schema._schema._validation_opts)
+            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, halt_on_error=self._schema.halt_on_error)
         except ValidationError as e:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 
@@ -637,7 +610,7 @@ class Any(Field):
                 value = field.deserialize(value)
                 valid = True
                 break
-            except Exception:
+            except Exception as e:
                 continue
         if not valid:
             raise SerializationError
@@ -653,7 +626,7 @@ class Any(Field):
                 value = field.serialize(value)
                 valid = True
                 break
-            except Exception:
+            except Exception as e:
                 continue
         if not valid:
             raise SerializationError
@@ -669,7 +642,7 @@ class Any(Field):
                 value = field.validate(value)
                 valid = True
                 break
-            except Exception:
+            except Exception as e:
                 continue
         if not valid:
             raise FieldValidationError(FieldError(self, 'invalid'))

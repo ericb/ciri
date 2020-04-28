@@ -111,7 +111,7 @@ def test_subrecursive_serialize_self():
 
     class Node(Schema):
         id = String(required=True)
-        node = SelfReference()
+        node = SelfReference(allow_none=True)
 
     class Root(PolySchema):
         node = SubSchema(Node, allow_none=True)
@@ -132,7 +132,7 @@ def test_subrecursive_deserialize_self():
 
     class Node(Schema):
         id = String(required=True)
-        node = SelfReference()
+        node = SelfReference(allow_none=True)
 
     class Root(Schema):
         node = SubSchema(Node, allow_none=True)
@@ -278,9 +278,9 @@ def test_subrecursive_serialize_list():
 
     class Node(Schema):
         id = String(required=True)
-        node = List(SubSchema('Node'))
+        node = List(SubSchema('Node'), allow_none=True)
 
     schema_registry.add('Node', Node)
 
     schema = Node()
-    assert schema.serialize({'id': '1', 'node': [{'id': '2', 'node': None}]}) == {'node': [{'id': '2'}], 'id': '1'}
+    assert schema.serialize({'id': '1', 'node': [{'id': '2', 'node': None}]}) == {'node': [{'id': '2', 'node': None}], 'id': '1'}
