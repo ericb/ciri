@@ -503,10 +503,8 @@ class Schema(AbstractSchema):
 
             field = self._fields[key]
 
-            if field.output_missing is not UseSchemaOption:
-                output_missing = field.output_missing
-            if field.allow_none is not UseSchemaOption:
-                allow_none = field.allow_none
+            field_output_missing = output_missing if field.output_missing is UseSchemaOption else field.output_missing
+            field_allow_none = allow_none if field.allow_none is UseSchemaOption else field.allow_none
 
             # field value
             if do_serialize:
@@ -536,11 +534,11 @@ class Schema(AbstractSchema):
                         self._error_handler.add(key, FieldError(field, 'invalid_polykey'))
                         continue
 
-            # if the field is missing and we do not output_missing skip it
-            if not field.required and missing and not output_missing:
+            # if the field is missing and we do not field_output_missing skip it
+            if not field.required and missing and not field_output_missing:
                 continue
 
-            if output_missing:
+            if field_output_missing:
                 # if the field is missing, set the default value
                 if (missing or klass_value is None) and (field.default is not SchemaFieldDefault):
                     if callable(field.default):
@@ -558,7 +556,7 @@ class Schema(AbstractSchema):
 
             if do_validate:
                 # sets klass_value prior to serialization/deserialization
-                output[key] = klass_value = self._validate_element(field, key, klass_value, output_missing, allow_none)
+                output[key] = klass_value = self._validate_element(field, key, klass_value, field_output_missing, field_allow_none)
                 if self.errors and self.halt_on_error:
                     break
                 elif self.errors:
