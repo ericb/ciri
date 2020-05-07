@@ -307,14 +307,14 @@ class ABCSchema(ABCMeta):
                     self._subfields[k] = v
                     self._elements[k] = True
                     if v.load:
-                        self._load_keys[v.load] = k
+                        self._load_keys.setdefault(v.load, []).append(k)
                 else:
                     if v.required or (v.default is not SchemaFieldDefault):
                         self._elements[k] = True
                     elif v.output_missing is True or (v.output_missing is UseSchemaOption and self._config.output_missing):
                         self._elements[k] = True
                     if v.load:
-                        self._load_keys[v.load] = k
+                        self._load_keys.setdefault(v.load, []).append(k)
                     # update tags
                     for tag in v.tags:
                         if not self._tags.get(tag):
@@ -638,7 +638,8 @@ class Schema(AbstractSchema):
                     if fields.get(k):
                         append(k)
                     elif self._load_keys.get(k):
-                        append(self._load_keys.get(k))
+                        for _k in self._load_keys.get(k):
+                            append(_k)
                 key_cache = set(self._e + data_keys)
             else:
                 key_cache = set(whitelist)
@@ -684,7 +685,8 @@ class Schema(AbstractSchema):
                 if fields.get(k):
                     append(k)
                 elif self._load_keys.get(k):
-                    append(self._load_keys.get(k))
+                    for _k in self._load_keys.get(k):
+                        append(_k)
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)
@@ -729,7 +731,8 @@ class Schema(AbstractSchema):
                 if fields.get(k):
                     append(k)
                 elif self._load_keys.get(k):
-                    append(self._load_keys.get(k))
+                    for _k in self._load_keys.get(k):
+                        append(_k)
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)
@@ -770,7 +773,8 @@ class Schema(AbstractSchema):
                 if fields.get(k):
                     append(k)
                 elif self._load_keys.get(k):
-                    append(self._load_keys.get(k))
+                    for _k in self._load_keys.get(k):
+                        append(_k)
             elements = set(self._e + data_keys)
         else:
             elements = set(whitelist)

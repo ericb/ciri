@@ -11,6 +11,7 @@
   * Fixed sub schema default value not respecting name key
   * Fixed sub schema mishandling load/name
   * Fixed parent schema mishandling load/name
+  * Fixed inability to set same load key on multiple fields
 
 
 # 0.6.0

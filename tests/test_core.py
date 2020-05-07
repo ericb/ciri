@@ -685,6 +685,14 @@ def test_schema_elements_have_load():
     schema = S()
     assert schema.deserialize({'foo': 'bar', 'nest': {'title': 'Hello World'}}).serialize() == {'name': 'Hello World'}
 
+def test_schema_multiple_elements_have_load():
+    class S(Schema):
+        name = fields.Child(fields.String(name='title'), load='nest')
+        name2 = fields.Child(fields.String(name='title2'), load='nest')
+    schema = S()
+    assert schema.deserialize({'foo': 'bar', 'nest': {'title': 'Hello World', 'title2': 'Hello World 2'}}).serialize() \
+        == {'name': 'Hello World', 'name2': 'Hello World 2'}
+
 def test_schema_elements_have_load_with_path():
     class S(Schema):
         name = fields.Child(fields.String(name='title'), path='b.c', load='a')
