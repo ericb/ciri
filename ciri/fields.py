@@ -584,9 +584,13 @@ class Child(Field):
     def _get_child_value(self, value):
         if self.cache_value is SchemaFieldMissing:
             ctx = val = value
+            if hasattr(ctx, '__dict__'):
+                ctx = vars(ctx)
             try:
                 for part in self.path.split('.'):
                     ctx = ctx.get(part, {})
+                    if hasattr(ctx, '__dict__'):
+                        ctx = vars(ctx)
             except AttributeError:
                 val = {}
             try:
@@ -599,16 +603,19 @@ class Child(Field):
     def serialize(self, value, **kwargs):
         if value is None and self._does_allow_none():
             return None
+        self.field._schema = self._schema
         return self.field.serialize(self._get_child_value(value))
 
     def deserialize(self, value):
         if value is None and self._does_allow_none():
             return None
+        self.field._schema = self._schema
         return self.field.deserialize(self._get_child_value(value))
 
     def validate(self, value):
         if value is None and self._does_allow_none():
             return None
+        self.field._schema = self._schema
         return self.field.validate(self._get_child_value(value))
 
 

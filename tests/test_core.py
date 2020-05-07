@@ -685,6 +685,17 @@ def test_schema_elements_have_load():
     schema = S()
     assert schema.deserialize({'foo': 'bar', 'nest': {'title': 'Hello World'}}).serialize() == {'name': 'Hello World'}
 
+def test_schema_elements_have_load_with_data_object():
+    class S(Schema):
+        name = fields.Child(fields.String(name='title'), load='nest')
+    schema = S()
+    class Data: pass
+    data = Data()
+    data.foo = 'bar'
+    data.nest = Data()
+    data.nest.title = 'Hello World'
+    assert schema.deserialize(data).serialize() == {'name': 'Hello World'}
+
 def test_schema_multiple_elements_have_load():
     class S(Schema):
         name = fields.Child(fields.String(name='title'), load='nest')
@@ -698,6 +709,17 @@ def test_schema_elements_have_load_with_path():
         name = fields.Child(fields.String(name='title'), path='b.c', load='a')
     schema = S()
     assert schema.serialize({'name': {'b': {'c': {'title': 'Hello World'}}}}) == {'name': 'Hello World'}
+
+def test_schema_elements_have_load_with_path_and_data_object():
+    class S(Schema):
+        name = fields.Child(fields.String(name='title'), path='b.c', load='a')
+    schema = S()
+    class Data: pass
+    data = Data()
+    data.name = Data()
+    data.name.b = {'c': Data()}
+    data.name.b['c'].title = 'Hello World'
+    assert schema.serialize(data) == {'name': 'Hello World'}
 
 def test_deserialize_with_load():
     class S(Schema):
