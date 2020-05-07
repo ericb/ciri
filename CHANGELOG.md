@@ -12,6 +12,7 @@
   * Fixed sub schema mishandling load/name
   * Fixed parent schema mishandling load/name
   * Fixed inability to set same load key on multiple fields
+  * Fixed child element errors for sub-object data
 
 
 # 0.6.0
