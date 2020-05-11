@@ -13,6 +13,7 @@
   * Fixed parent schema mishandling load/name
   * Fixed inability to set same load key on multiple fields
   * Fixed child element errors for sub-object data
+  * Fixed child field value invaid caching
 
 
 # 0.6.0
