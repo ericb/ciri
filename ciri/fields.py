@@ -579,26 +579,24 @@ class Child(Field):
     def new(self, field, *args, **kwargs):
         self.field = field
         self.path = kwargs.pop('path', None)
-        self.cache_value = SchemaFieldMissing
 
     def _get_child_value(self, value):
-        if self.cache_value is SchemaFieldMissing:
-            ctx = val = value
-            if hasattr(ctx, '__dict__'):
-                ctx = vars(ctx)
+        ctx = value
+        if hasattr(ctx, '__dict__'):
+            ctx = vars(ctx)
+        if isinstance(ctx, dict):
             try:
                 for part in self.path.split('.'):
                     ctx = ctx.get(part, {})
                     if hasattr(ctx, '__dict__'):
                         ctx = vars(ctx)
             except AttributeError:
-                val = {}
+                pass
             try:
-                val = ctx.get(self.field.name)
+                value = ctx.get(self.field.name)
             except AttributeError:
-                val = None
-            self.cache_value = val
-        return self.cache_value
+                value = None
+        return value
 
     def serialize(self, value, **kwargs):
         if value is None and self._does_allow_none():
