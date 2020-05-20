@@ -555,30 +555,30 @@ class Child(Field):
         self.cache_value = SchemaFieldMissing
 
     def _get_child_value(self, value):
-        if self.cache_value is SchemaFieldMissing:
-            ctx = value
-            if hasattr(ctx, '__dict__'):
-                ctx = vars(ctx)
-            if isinstance(ctx, dict):
-                try:
-                    for part in self.path.split('.'):
-                        ctx = ctx.get(part, {})
-                        if hasattr(ctx, '__dict__'):
-                            ctx = vars(ctx)
-                except AttributeError:
-                    pass
-                try:
-                    value = ctx.get(self.field.name)
-                except AttributeError:
-                    value = None
-            self.cache_value = value
-        return self.cache_value
+        ctx = value
+        if hasattr(ctx, '__dict__'):
+            ctx = vars(ctx)
+        if isinstance(ctx, dict):
+            try:
+                for part in self.path.split('.'):
+                    ctx = ctx.get(part, {})
+                    if hasattr(ctx, '__dict__'):
+                        ctx = vars(ctx)
+            except AttributeError:
+                pass
+            try:
+                value = ctx.get(self.field.name)
+            except AttributeError:
+                value = None
+        return value
 
     def serialize(self, value, **kwargs):
         if value is None and self._does_allow_none():
             return None
         self.field._schema = self._schema
-        child_val = self._get_child_value(value)
+        child_val = self.cache_value
+        if child_val is SchemaFieldMissing:
+            child_val = self._get_child_value(value)
         self.cache_value = SchemaFieldMissing
         return self.field.serialize(child_val)
 
@@ -586,7 +586,9 @@ class Child(Field):
         if value is None and self._does_allow_none():
             return None
         self.field._schema = self._schema
-        child_val = self._get_child_value(value)
+        child_val = self.cache_value
+        if child_val is SchemaFieldMissing:
+            child_val = self._get_child_value(value)
         self.cache_value = SchemaFieldMissing
         return self.field.deserialize(child_val)
 
@@ -594,7 +596,8 @@ class Child(Field):
         if value is None and self._does_allow_none():
             return None
         self.field._schema = self._schema
-        return self.field.validate(self._get_child_value(value))
+        self.cache_value = self.field.validate(self._get_child_value(value))
+        return self.cache_value
 
 
 class Any(Field):
