@@ -552,36 +552,43 @@ class Child(Field):
     def new(self, field, *args, **kwargs):
         self.field = field
         self.path = kwargs.pop('path', None)
+        self.cache_value = SchemaFieldMissing
 
     def _get_child_value(self, value):
-        ctx = value
-        if hasattr(ctx, '__dict__'):
-            ctx = vars(ctx)
-        if isinstance(ctx, dict):
-            try:
-                for part in self.path.split('.'):
-                    ctx = ctx.get(part, {})
-                    if hasattr(ctx, '__dict__'):
-                        ctx = vars(ctx)
-            except AttributeError:
-                pass
-            try:
-                value = ctx.get(self.field.name)
-            except AttributeError:
-                value = None
-        return value
+        if self.cache_value is SchemaFieldMissing:
+            ctx = value
+            if hasattr(ctx, '__dict__'):
+                ctx = vars(ctx)
+            if isinstance(ctx, dict):
+                try:
+                    for part in self.path.split('.'):
+                        ctx = ctx.get(part, {})
+                        if hasattr(ctx, '__dict__'):
+                            ctx = vars(ctx)
+                except AttributeError:
+                    pass
+                try:
+                    value = ctx.get(self.field.name)
+                except AttributeError:
+                    value = None
+            self.cache_value = value
+        return self.cache_value
 
     def serialize(self, value, **kwargs):
         if value is None and self._does_allow_none():
             return None
         self.field._schema = self._schema
-        return self.field.serialize(self._get_child_value(value))
+        child_val = self._get_child_value(value)
+        self.cache_value = SchemaFieldMissing
+        return self.field.serialize(child_val)
 
     def deserialize(self, value):
         if value is None and self._does_allow_none():
             return None
         self.field._schema = self._schema
-        return self.field.deserialize(self._get_child_value(value))
+        child_val = self._get_child_value(value)
+        self.cache_value = SchemaFieldMissing
+        return self.field.deserialize(child_val)
 
     def validate(self, value):
         if value is None and self._does_allow_none():

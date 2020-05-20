@@ -3,6 +3,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/../')  # noqa
 
+import uuid
+
 from ciri import fields
 from ciri.fields import FieldError
 from ciri.core import Schema, SchemaOptions
@@ -720,6 +722,18 @@ def test_schema_elements_have_load_with_path_and_data_object():
     data.name.b = {'c': Data()}
     data.name.b['c'].title = 'Hello World'
     assert schema.serialize(data) == {'name': 'Hello World'}
+
+def test_schema_elements_uuid():
+    genid = uuid.uuid4()
+    class S(Schema):
+        rec_id = fields.Child(fields.UUID(name='id'), path='b.c', load='rec')
+    schema = S()
+    class Data: pass
+    data = Data()
+    data.rec = Data()
+    data.rec.b = {'c': Data()}
+    data.rec.b['c'].id = genid
+    assert schema.deserialize(data).serialize() == {'rec_id': str(genid)}
 
 def test_deserialize_with_load():
     class S(Schema):
