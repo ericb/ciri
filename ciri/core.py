@@ -314,7 +314,7 @@ class ABCSchema(ABCMeta):
                 elif v.output_missing is True or (v.output_missing is UseSchemaOption and self._config.output_missing):
                     self._check_elements.append(k)
                 if v.load:
-                    self._load_keys[v.load] = k
+                    self._load_keys.setdefault(v.load, []).append(k)
                 # update tags
                 for tag in v.tags:
                     if not self._tags.get(tag):
@@ -491,7 +491,7 @@ class Schema(AbstractSchema):
                 if self._fields.get(k):
                     data_keys.append(k)
                 elif self._load_keys.get(k):
-                    data_keys.append(self._load_keys.get(k))
+                    data_keys.extend(self._load_keys[k])
             elements = set(self._check_elements + data_keys)
 
         exclude = set(exclude) if exclude else set()
