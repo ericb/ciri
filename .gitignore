@@ -44,6 +44,10 @@ nosetests.xml
 coverage.xml
 *,cover
 
+# Benchmarks Tests
+perf/bench-*.py
+perf/bench.py
+
 # Translations
 *.mo
 *.pot
