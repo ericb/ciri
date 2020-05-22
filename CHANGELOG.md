@@ -1,5 +1,6 @@
 # PENDING
 
+  * **BREAKING** Dropped Python2 Support
   * **BREAKING** Modified behavior of `default` field property
     to only set a default if `output_missing` is true.
   * Fixed schema reference issue with `Any` fields
