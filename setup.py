@@ -36,18 +36,17 @@ setup(
     packages=find_packages(exclude=('test*', 'docs')),
     package_dir={'ciri': 'ciri'},
     include_package_data=True,
-    python_requires='>=2.6',
+    python_requires='>=3.4',
     license='MIT',
     classifiers=[
         'Development Status :: 3 - Alpha',
         'License :: OSI Approved :: MIT License',
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.6',
-        'Programming Language :: Python :: 2.7',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Topic :: Software Development :: Libraries',
         'Topic :: Utilities'
     ]

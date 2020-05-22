@@ -4,7 +4,6 @@ import uuid
 from abc import ABCMeta
 
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
-from ciri.compat import add_metaclass, str_
 from ciri.registry import schema_registry
 from ciri.exception import (
         SerializationError,
@@ -66,8 +65,7 @@ class AbstractBaseField(ABCMeta):
         return klass
 
 
-@add_metaclass(AbstractBaseField)
-class Field(AbstractField):
+class Field(AbstractField, metaclass=AbstractBaseField):
     """Base Field Class that all other Fields extend from"""
 
     __slots__ = ['name', 'required', 'default', 'allow_none',
@@ -143,28 +141,20 @@ class String(Field):
     def new(self, *args, **kwargs):
         self.allow_empty = kwargs.get('allow_empty', True)
         self.trim = kwargs.get('trim', True)
-        self.encoding = kwargs.get('unicode_enc', 'utf-8')
 
     def serialize(self, value, **kwargs):
         if value is None and self._does_allow_none():
             return None
-        if str is not str_:
-            return str_(value, self.encoding)
         return value
 
     def deserialize(self, value):
         if value is None and self._does_allow_none():
             return None
-        if str is not str_:
-            return str_(value, self.encoding)
         return value
 
     def validate(self, value):
         if value is None and self._does_allow_none():
             return None
-        if str is not str_:
-            if isinstance(value, str_) and str_(value) == value:
-                value = str(value)
         if type(value) is not str or str(value) != value:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.trim:
@@ -234,7 +224,7 @@ class Float(Field):
             return None
         if type(value) is float:
             return value
-        if type(value) in (bool, str, str_):
+        if type(value) in (bool, str):
             raise FieldValidationError(FieldError(self, 'invalid'))
         try:
             float(value) is value

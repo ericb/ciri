@@ -14,7 +14,6 @@ Ciri helps you build schema definitions for your application; giving you a found
 Features
 ========
 
-* Python 3/2 support
 * Serialize data to basic Python types 
 * Deserialize data back to schema objects
 * Schema encoding

@@ -6,7 +6,6 @@ from ciri.abstract import (AbstractField,
                            AbstractPolySchema,
                            SchemaFieldDefault,
                            SchemaFieldMissing, UseSchemaOption)
-from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
 from ciri.exception import (SerializationError,
                             ValidationError,
@@ -327,8 +326,7 @@ class ABCSchema(ABCMeta):
                 self._subschemas[k] = v
 
 
-@add_metaclass(ABCSchema)
-class Schema(AbstractSchema):
+class Schema(AbstractSchema, metaclass=ABCSchema):
 
     def __init__(self, *args, **kwargs):
         for k, v in kwargs.items():
