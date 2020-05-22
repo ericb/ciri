@@ -20,9 +20,8 @@ class Registry(object):
         else:
             reg_value = self.storage.get(name, RegistryKeyMissing)
             if reg_value != RegistryKeyMissing:
-               return reg_value
+                return reg_value
             raise RegistryError('{} was not found in the registry'.format(name))
-        
 
     def remove(self, name):
         del self.storage[name]

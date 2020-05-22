@@ -2,21 +2,21 @@
 #
 #  Copyright (c) Django Software Foundation and individual contributors.
 #  All rights reserved.
-#  
+#
 #  Redistribution and use in source and binary forms, with or without modification,
 #  are permitted provided that the following conditions are met:
-#  
+#
 #      1. Redistributions of source code must retain the above copyright notice,
 #         this list of conditions and the following disclaimer.
-#  
+#
 #      2. Redistributions in binary form must reproduce the above copyright
 #         notice, this list of conditions and the following disclaimer in the
 #         documentation and/or other materials provided with the distribution.
-#  
+#
 #      3. Neither the name of Django nor the names of its contributors may be used
 #         to endorse or promote products derived from this software without
 #         specific prior written permission.
-#  
+#
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 #  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 #  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -27,7 +27,7 @@
 #  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 #  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 #  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-# 
+#
 #
 
 import datetime
@@ -41,7 +41,7 @@ class FixedOffset(datetime.tzinfo):
     to make its arguments optional, according to Python's requirement that
     tzinfo subclasses can be instantiated without arguments.
     """
-    
+
     def __init__(self, offset=None, name=None):
         if offset is not None:
             self.__offset = datetime.timedelta(minutes=offset)
@@ -55,7 +55,7 @@ class FixedOffset(datetime.tzinfo):
         return self.__name
 
     def dst(self, dt):
-        return timedelta(0)
+        return datetime.timedelta(0)
 
 
 utc = FixedOffset(0)
@@ -69,6 +69,7 @@ def get_fixed_timezone(offset):
     hhmm = '%02d%02d' % divmod(abs(offset), 60)
     name = sign + hhmm
     return FixedOffset(offset, name)
+
 
 date_re = re.compile(
     r'(?P<year>\d{4})-(?P<month>\d{1,2})-(?P<day>\d{1,2})$'

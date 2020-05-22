@@ -8,7 +8,7 @@ class SchemaEncoder(object):
 
 
 class JSONEncoder(SchemaEncoder):
-    
+
     def __init__(self):
         self.encoder = json.JSONEncoder(check_circular=False)
 

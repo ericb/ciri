@@ -1,7 +1,4 @@
 import datetime
-import re
-import sys
-import traceback
 import uuid
 
 from abc import ABCMeta
@@ -9,8 +6,12 @@ from abc import ABCMeta
 from ciri.abstract import AbstractField, AbstractSchema, SchemaFieldDefault, SchemaFieldMissing, UseSchemaOption
 from ciri.compat import add_metaclass, str_
 from ciri.registry import schema_registry
-from ciri.exception import InvalidSchemaException, SchemaException, SerializationError, RegistryError, \
-    ValidationError, FieldValidationError, FieldError
+from ciri.exception import (
+        SerializationError,
+        ValidationError,
+        FieldValidationError,
+        FieldError
+)
 from ciri.util.dateparse import parse_date, parse_datetime
 
 
@@ -105,7 +106,7 @@ class Field(AbstractField):
 
     def serialize(self, value, **kwargs):
         """
-        Serialization method 
+        Serialization method
 
         :param value: value to be serialized as a basic python type
         :raises: SerializationError, NotImplementedError
@@ -114,7 +115,7 @@ class Field(AbstractField):
 
     def deserialize(self, value):
         """
-        Deserialization method 
+        Deserialization method
 
         :param value: value to be deserialized as a basic python type
         :raises: SerializationError, NotImplementedError
@@ -167,7 +168,7 @@ class String(Field):
         if type(value) is not str or str(value) != value:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.trim:
-            value = value.strip() 
+            value = value.strip()
         if not value and not self.allow_empty:
             raise FieldValidationError(FieldError(self, 'empty'))
         return value
@@ -236,12 +237,12 @@ class Float(Field):
         if type(value) in (bool, str, str_):
             raise FieldValidationError(FieldError(self, 'invalid'))
         try:
-           float(value) is value
+            float(value) is value
         except TypeError:
             raise FieldValidationError(FieldError(self, 'invalid'))
         if self.strict:
             try:
-                value.is_integer() 
+                value.is_integer()
             except AttributeError:
                 raise FieldValidationError(FieldError(self, 'invalid'))
         return value
@@ -394,8 +395,9 @@ class Schema(Field):
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping'))
         try:
-            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, halt_on_error=self._schema.halt_on_error)
-        except ValidationError as e:
+            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags,
+                                   halt_on_error=self._schema.halt_on_error)
+        except ValidationError:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 
 
@@ -437,8 +439,9 @@ class SelfReference(Field):
         if not hasattr(value, '__dict__') and (type(value) is not dict or not isinstance(value, dict)):
             raise FieldValidationError(FieldError(self, 'invalid_mapping'))
         try:
-            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags, halt_on_error=self._schema.halt_on_error)
-        except ValidationError as e:
+            return schema.validate(value, exclude=self.exclude, whitelist=self.whitelist, tags=self.tags,
+                                   halt_on_error=self._schema.halt_on_error)
+        except ValidationError:
             raise FieldValidationError(FieldError(self, 'invalid', errors=schema._raw_errors))
 
 
@@ -465,7 +468,7 @@ class Date(Field):
             return None
         if type(value) is datetime.date:
             return value
-        
+
         if type(value) is datetime.datetime:
             return datetime.date(value.year, value.month, value.day)
 
@@ -486,7 +489,7 @@ class Date(Field):
                 raise FieldValidationError(FieldError(self, 'invalid'))
 
         if dt:
-            return dt 
+            return dt
         raise FieldValidationError(FieldError(self, 'invalid'))
 
 
@@ -620,7 +623,7 @@ class Any(Field):
                 value = field.deserialize(value)
                 valid = True
                 break
-            except Exception as e:
+            except Exception:
                 continue
         if not valid:
             raise SerializationError
@@ -636,7 +639,7 @@ class Any(Field):
                 value = field.serialize(value)
                 valid = True
                 break
-            except Exception as e:
+            except Exception:
                 continue
         if not valid:
             raise SerializationError
@@ -652,7 +655,7 @@ class Any(Field):
                 value = field.validate(value)
                 valid = True
                 break
-            except Exception as e:
+            except Exception:
                 continue
         if not valid:
             raise FieldValidationError(FieldError(self, 'invalid'))

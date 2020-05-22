@@ -7,8 +7,8 @@ class SchemaException(Exception):
 class ValidationError(Exception):
 
     def __init__(self, schema, message=None):
-       self.schema = schema
-       self.message = message
+        self.schema = schema
+        self.message = message
 
     def __repr__(self):
         return '{}(schema={}, message={})'.format(
@@ -47,6 +47,7 @@ class FieldValidationError(ValidationError):
 
     def __str__(self):
         return self.__repr__()
+
 
 class SerializationError(SchemaException):
     pass

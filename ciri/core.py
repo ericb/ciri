@@ -8,8 +8,11 @@ from ciri.abstract import (AbstractField,
                            SchemaFieldMissing, UseSchemaOption)
 from ciri.compat import add_metaclass
 from ciri.encoder import JSONEncoder
-from ciri.exception import SchemaException, SerializationError, ValidationError, FieldValidationError, \
-    RegistryError, FieldError
+from ciri.exception import (SerializationError,
+                            ValidationError,
+                            FieldValidationError,
+                            RegistryError,
+                            FieldError)
 from ciri.fields import Schema as SchemaField
 from ciri.registry import schema_registry
 
@@ -35,7 +38,7 @@ class ErrorHandler(object):
     def add(self, key, field_error):
         """Takes a `FieldError`
 
-        :param key: error key 
+        :param key: error key
         :type key: str
 
         """
@@ -78,7 +81,7 @@ class SchemaOptions(object):
             'registry': schema_registry,
             'output_missing': False
         }
-        options = dict((k, v) if k in defaults else ('_unknown', 1) for (k,v) in kwargs.items())
+        options = dict((k, v) if k in defaults else ('_unknown', 1) for (k, v) in kwargs.items())
         options.pop('_unknown', None)
         defaults.update(options)
         for k, v in defaults.items():
@@ -192,11 +195,11 @@ class ABCSchema(ABCMeta):
 
             # Meta : poly_id
             if getattr(attrs['Meta'], 'poly_id', None):
-                attrs['__poly_id__'] = getattr(attrs['Meta'], 'poly_id') 
+                attrs['__poly_id__'] = getattr(attrs['Meta'], 'poly_id')
 
             # Meta : options
             if getattr(attrs['Meta'], 'options', None):
-                attrs['__schema_options__'] = getattr(attrs['Meta'], 'options') 
+                attrs['__schema_options__'] = getattr(attrs['Meta'], 'options')
 
             # Meta : tags
             if getattr(attrs['Meta'], 'tags', None):
@@ -274,7 +277,7 @@ class ABCSchema(ABCMeta):
     def find_fields(self):
         """Find the :class:`~ciri.fields.Field` attributes and store them in the
         schemas `_fields` attribute."""
-        items = dict((k,v) for k,v in vars(self).items())
+        items = dict((k, v) for k, v in vars(self).items())
         includes = getattr(self, '__schema_include__', None)
         inc = {}
         if includes:
@@ -555,7 +558,6 @@ class Schema(AbstractSchema):
                 if not field.required and missing:
                     klass_value = field.missing_output_value
 
-
             if do_validate:
                 # sets klass_value prior to serialization/deserialization
                 output[key] = klass_value = self._validate_element(field, key, klass_value, output_missing, allow_none)
@@ -579,7 +581,7 @@ class Schema(AbstractSchema):
 
         return output
 
-    def validate(self, data=None, halt_on_error=False, exclude=None, 
+    def validate(self, data=None, halt_on_error=False, exclude=None,
                  whitelist=None, tags=None, context=None):
         data = data or self
         if hasattr(data, '__dict__'):
@@ -603,7 +605,7 @@ class Schema(AbstractSchema):
         if hasattr(self._schema_callables, 'post_validate'):
             context = context or self.context
             for c in getattr(self._schema_callables, 'post_validate'):
-                valid = c(valid, schema=self, context=context)
+                output = c(output, schema=self, context=context)
 
         if self._config.raise_errors and self.errors:
             raise ValidationError(self)
