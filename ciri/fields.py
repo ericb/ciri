@@ -189,7 +189,7 @@ class Integer(Field):
         try:
             if not float(value).is_integer():
                 raise FieldValidationError(FieldError(self, 'invalid'))
-        except TypeError:
+        except (TypeError, ValueError):
             raise FieldValidationError(FieldError(self, 'invalid'))
         try:
             if int(value) != value or type(value) is bool:
