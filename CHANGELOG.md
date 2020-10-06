@@ -19,6 +19,7 @@
   * Added repr and str to exceptions
   * Fixed issue with None being default-allowed in subschemas, updated tests
   * Added benchmark test
+  * Fixed serialize callable for name change
 
 
 # 0.6.0

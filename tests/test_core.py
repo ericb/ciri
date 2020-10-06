@@ -296,6 +296,18 @@ def test_simple_field_pre_serializer():
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
 
 
+def test_field_name_change_pre_serializer():
+    def capitilize(value, schema, field):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(name='first', pre_serialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first': 'Foo Bar', 'last_name': 'jenkins'}
+
+
 def test_simple_field_post_serializer():
     def capitilize(value, schema, field):
         return value.title()
@@ -306,6 +318,18 @@ def test_simple_field_post_serializer():
 
     schema = S()
     assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first_name': 'Foo Bar', 'last_name': 'jenkins'}
+
+
+def test_field_name_change_post_serializer():
+    def capitilize(value, schema, field):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(name='first', post_serialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    assert schema.serialize({'first_name': 'foo bar', 'last_name': 'jenkins'}) == {'first': 'Foo Bar', 'last_name': 'jenkins'}
 
 
 def test_simple_field_pre_deserializer():
@@ -321,6 +345,19 @@ def test_simple_field_pre_deserializer():
     assert s.first_name == 'Foo Bar'
 
 
+def test_field_name_change_pre_deserializer():
+    def capitilize(value, schema, field):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(load='first', pre_deserialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
+    assert s.first_name == 'Foo Bar'
+
+
 def test_simple_field_post_deserializer():
     def capitilize(value, schema, field):
         return value.title()
@@ -331,6 +368,19 @@ def test_simple_field_post_deserializer():
 
     schema = S()
     s = schema.deserialize({'first_name': 'foo bar', 'last_name': 'jenkins'})
+    assert s.first_name == 'Foo Bar'
+
+
+def test_field_name_change_post_deserializer():
+    def capitilize(value, schema, field):
+        return value.title()
+
+    class S(Schema):
+        first_name = fields.String(load='first', post_deserialize=[capitilize])
+        last_name = fields.String()
+
+    schema = S()
+    s = schema.deserialize({'first': 'foo bar', 'last_name': 'jenkins'})
     assert s.first_name == 'Foo Bar'
 
 

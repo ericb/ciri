@@ -568,7 +568,7 @@ class Schema(AbstractSchema, metaclass=ABCSchema):
                 # determine the field result name (serialized name)
                 output_key = field.name or key
 
-                output[output_key] = self._serialize_element(field, output_key, klass_value)
+                output[output_key] = self._serialize_element(field, key, klass_value)
 
                 # remove old keys if the serializer renames the field
                 if output_key != key:
